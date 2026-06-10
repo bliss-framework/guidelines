@@ -6,7 +6,10 @@ document what a component reads.
 
 This is a living doc. Update it when the taxonomy grows or shifts. See
 [color-scheme.md](./color-scheme.md) for how `--base-*` variables interact
-with light/dark mode.
+with light/dark mode, and [theme-container.md](./theme-container.md) for
+*where* the `--<prefix>-*` declarations described below must live (the
+short answer: on the component's container — `:host` for web-components,
+`.<prefix>-container` for Svelte — never on `:root`).
 
 ---
 
@@ -75,6 +78,43 @@ Every color, font, radius, etc. in a component follows this shape:
    takes over. The component still looks correct.
 3. **Code reads cleanly.** Internal CSS rules reference one short name
    (`var(--wp-control-bg)`), not a 5-deep `var()` chain.
+
+### Fallbacks live at the definition site, not at every read
+
+A direct consequence of the two-layer pattern: **the fallback chain
+belongs on the `--<prefix>-X` definition on the container, not on every
+feature-file read of `--<prefix>-X`.** Once `:host` (or
+`.<prefix>-container`) declares `--wp-control-bg: var(--base-main-bg,
+light-dark(...))`, every descendant rule that reads `var(--wp-control-bg)`
+is guaranteed to resolve to a value — the fallback already happened at
+the declaration site.
+
+```css
+/* RIGHT — fallback at the definition, bare read at the call site */
+:host {
+  --wp-control-bg: var(--base-main-bg, light-dark(#ffffff, #1a1a1a));
+}
+
+.wp__control {
+  background: var(--wp-control-bg);   /* no literal needed */
+}
+
+/* WRONG — duplicates the literal at every read; goes out of sync the
+   moment a designer changes the dark color in only one place. */
+:host {
+  --wp-control-bg: var(--base-main-bg, light-dark(#ffffff, #1a1a1a));
+}
+
+.wp__control {
+  background: var(--wp-control-bg, light-dark(#ffffff, #1a1a1a));
+}
+```
+
+`var(--base-*)` reads are the only place a fallback is mandatory — those
+*can* resolve to nothing if the consumer hasn't loaded theme-designer or
+set the variable. Check C-BV-2 in
+[base-variables.checks.md](./base-variables.checks.md) enforces this and
+this only.
 
 ### The fallback should always be `light-dark()` for colors
 

@@ -1,9 +1,17 @@
-# Web Component Guidelines — Index
+# Component Guidelines — Index
 
-This folder contains the project-wide rules for building custom-element libraries
-in the Bliss / KeenMate ecosystem (`@keenmate/web-grid`,
+This folder contains the project-wide rules for building UI component
+libraries in the Bliss / KeenMate ecosystem — both **web-components**
+(custom elements with Shadow DOM, e.g. `@keenmate/web-grid`,
 `@keenmate/web-multiselect`, `@keenmate/web-daterangepicker`,
-`@keenmate/web-player`, etc.).
+`@keenmate/web-player`) and **Svelte components** (light DOM,
+e.g. `@keenmate/svelte-treeview`, `@keenmate/svelte-switch`).
+
+> The folder is named `web-components/` for historical reasons. The
+> rules apply to Svelte components too; each guideline calls out the
+> per-technology shape where it differs. Future host technologies
+> (React, Vue, Blazor / C#, LiveView / Elixir) inherit the same shape
+> with their equivalent root-element selector.
 
 **For AI agents:** This README is an index, not a guideline. Read it to figure
 out *which* guideline file applies to the work you're doing, then read that
@@ -29,7 +37,9 @@ yet (TBD).
 
 | If you are… | Read |
 |-------------|------|
+| Starting a brand-new component (picking technology, package name, CSS prefix) | [component-intake.md](./component-intake.md) — or run `/new-component` for an interactive walkthrough |
 | Scaffolding a new component's CSS, or refactoring an existing one's structure | [css-structure.md](./css-structure.md) → [.decisions](./css-structure.decisions.md) → implement → [.checks](./css-structure.checks.md) |
+| Choosing or refactoring the component's root container (`:host` for web-components, `.<prefix>-container` for Svelte), wiring per-instance `data-theme`, deciding default background | [theme-container.md](./theme-container.md) → [.decisions](./theme-container.decisions.md) → implement → [.checks](./theme-container.checks.md) |
 | Adding or changing how a component reacts to dark mode | [color-scheme.md](./color-scheme.md) → [.decisions](./color-scheme.decisions.md) → implement → [.checks](./color-scheme.checks.md) |
 | Defining new CSS variables on a component, or wiring `--base-*` hooks | [base-variables.md](./base-variables.md) → [.decisions](./base-variables.decisions.md) → implement → [.checks](./base-variables.checks.md) |
 | Looking for a concrete worked example | [example-web-player.md](./example-web-player.md) |
@@ -38,9 +48,13 @@ If the task touches more than one topic, read every applicable `.md` before
 you start, walk every applicable `.decisions.md` to scope the work, and run
 every applicable `.checks.md` before declaring done.
 
-**Starting a brand-new component?** Read in order: `css-structure.md` →
-`base-variables.md` → `color-scheme.md` → `example-web-player.md`. The
-ordering mirrors how you'd actually build the component.
+**Starting a brand-new component?** Run the intake first
+(`component-intake.md`, or `/new-component`) to lock down technology,
+package identity, and CSS prefix. Then read in order: `css-structure.md`
+→ `theme-container.md` → `base-variables.md` → `color-scheme.md` →
+`example-web-player.md`. The ordering mirrors how you'd actually build
+the component: intake first; then file layout, root container scope,
+variables that hang off it, dark-mode overrides.
 
 ---
 
@@ -56,6 +70,21 @@ of the component's README.
       `@import` specifies its layer.
 - [ ] No underscore-prefixed file names (legacy SASS convention).
 - [ ] BEM convention used for all class names.
+
+### Theme container
+- [ ] All `--<prefix>-*` variables declared on the container (`:host` for
+      web-components, `.<prefix>-container` for Svelte) — never on
+      `:root` / `html` / `body`. See `theme-container.md`.
+- [ ] Container paints its own default background via
+      `background: var(--<prefix>-bg, …)`, unless intentionally transparent
+      (documented in README).
+- [ ] No `color-scheme` declaration on the container.
+- [ ] `display: block` (or documented `inline-block`) and
+      `position: relative` on the container.
+- [ ] Per-instance `data-theme="dark"` / `="light"` selectors exist and
+      set a symmetric variable set.
+- [ ] Svelte components: `theme` prop exposed and forwarded to
+      `data-theme` on the container.
 
 ### CSS variables
 - [ ] Every visible color in the shadow DOM resolves through a CSS variable —
@@ -141,6 +170,9 @@ written):
 - `typescript.md` — type exports, declaration files, dual UMD/ESM publishing
 - `testing.md` — Playwright fixtures, contrast suites, snapshot conventions
 - `packaging.md` — `dist/` layout, package.json `exports` field, CDN-friendliness
+- `svelte-component-shell.md` — the Svelte-specific equivalent of
+  `theme-container.md`, expanded with SSR / hydration / stores notes once
+  we have more than two Svelte components in the suite
 
 If you're starting work in one of those areas and the file doesn't exist yet,
 ask the user before inventing your own convention.

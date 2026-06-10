@@ -36,22 +36,51 @@ blocks). Every visible color in `_base.css`, `_dropdown.css`, etc. consumes
 
 ---
 
-## C-BV-2 — Every `var()` has a fallback
+## C-BV-2 — Every `var(--base-*)` read has a fallback
 
-**What:** No `var(--name)` is read without a fallback default. The fallback
-might be another `var()` (chain) or a literal/`light-dark()`.
+**What:** Every read of a `--base-*` variable must include a fallback —
+another `var()` (chain), a literal, or `light-dark()`. Reads of
+component-local `--<prefix>-*` variables do **not** require a fallback:
+they're defined on the container (`:host` / `.<prefix>-container`) with
+their own `--base-*` chain, so a feature-file read of `var(--wp-control-bg)`
+is guaranteed to resolve. The two-layer pattern is what makes the
+literal-at-the-call-site noise both unnecessary and out-of-sync-prone.
 
 **How to verify:**
 ```bash
-# Find var() reads with no comma (no fallback)
-grep -nE "var\(--[a-z-]+\)" src/css/*.css | grep -v "//"
+# Find --base-* reads with no comma (no fallback)
+grep -nE "var\(--base-[a-z-]+\)" src/css/*.css
+
+# Sanity: --<prefix>-* reads WITHOUT fallback are FINE; do not flag them.
+# Only the --base-* ones above are violations.
 ```
 
-**Pass:** Empty output (every `var()` has a comma → fallback).
+**Pass:** Empty output from the `--base-*` grep. Any `var(--<prefix>-X)`
+read without a fallback in a feature file is a pass — that's the
+intended pattern.
 
-**Failure mode:** Loading the component without theme-designer (or without
-the consuming app setting `--base-*`) produces a broken render — `var()`
-resolves to nothing, the property reverts to browser default.
+**Failure mode:** A bare `var(--base-X)` read inside `:host` /
+`.<prefix>-container` resolves to nothing when the consumer hasn't
+loaded theme-designer (or set `--base-*` on `:root`/ancestor). The
+property reverts to browser default and the component renders broken
+standalone.
+
+**Worked example (passing):**
+```css
+:host {
+  /* --base-* read: fallback REQUIRED */
+  --wp-control-bg: var(--base-main-bg, light-dark(#ffffff, #1a1a1a));
+}
+
+.wp__control {
+  /* --<prefix>-* read: fallback NOT required */
+  background: var(--wp-control-bg);
+}
+```
+
+**Cross-references:** This rule pairs with [base-variables.md](./base-variables.md)
+"The two-layer pattern" — the fallback lives at the definition site, not
+the read site. Also see CLAUDE.md invariant #9.
 
 ---
 
@@ -262,7 +291,7 @@ Paste into PR description, tick every box:
 
 ```
 [ ] C-BV-1  every visible color resolves through a variable
-[ ] C-BV-2  every var() has a fallback
+[ ] C-BV-2  every var(--base-*) read has a fallback
 [ ] C-BV-3  :host declares every component-local variable
 [ ] C-BV-4  component prefix is unique and reserved
 [ ] C-BV-5  manifest exists and is exported

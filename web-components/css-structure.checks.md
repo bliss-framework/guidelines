@@ -202,7 +202,8 @@ features should be split.
 ## C-CSS-10 — Layer contract documented in README
 
 **What:** The component's README describes the cascade layer contract so
-consumers know how to override.
+consumers know how to override — *and* warns about the unlayered-reset
+footgun so they don't accidentally clobber it.
 
 **How to verify:** Open `packages/<component>/README.md`, find a "Theming"
 or "Code structure" section, confirm it mentions:
@@ -210,11 +211,23 @@ or "Code structure" section, confirm it mentions:
 - The three `@layer` names (or whatever was chosen in D-CSS-3)
 - The override contract ("any unlayered consumer rule wins")
 - How to set `--base-*` and `--<prefix>-*` to theme
+- The **unlayered-reset footgun**: a consumer-side `* { margin: 0;
+  padding: 0; ... }` (Bootstrap reboot, Tailwind preflight,
+  hand-rolled, etc.) is unlayered and therefore beats every rule in
+  the component's `@layer component`, causing the component to render
+  with broken spacing even though variables resolved correctly. The
+  README should tell consumers to wrap universal resets in their own
+  layer (`@layer reset { * { ... } }`) so the library's layered
+  defaults can win. See `css-structure.md` → "The unlayered-reset
+  footgun" for the canonical write-up to lift.
 
-**Pass:** Section exists and is accurate.
+**Pass:** Section exists, is accurate, and includes the unlayered-reset
+warning.
 
 **Failure mode:** Consumers reach for `!important` because they don't
-realize the layer escape hatch exists.
+realize the layer escape hatch exists — *or* consumers report
+mysteriously broken spacing because a global reset is silently winning
+against the component's layered defaults.
 
 ---
 

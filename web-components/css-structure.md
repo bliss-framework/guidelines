@@ -207,6 +207,59 @@ With `@layer`, the rules of engagement are:
 Document this contract in the component README so consumers know they have
 power.
 
+### The unlayered-reset footgun
+
+The same rule that gives consumers a clean override path — *unlayered
+beats layered* — bites in the other direction when a consumer ships a
+universal reset *outside* any layer:
+
+```css
+/* Consumer's global stylesheet — Bootstrap reboot, Tailwind preflight,
+   normalize.css, hand-rolled, anything of this shape */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+```
+
+Per the CSS `@layer` specification, that `*` rule is **unlayered**, so
+it beats *every* rule in your `@layer component` regardless of
+specificity. The component's
+`.<prefix>__cell { padding: var(--<prefix>-cell-padding) }` loses to
+`* { padding: 0 }`, and the component renders with broken spacing even
+though all the variables resolved correctly. This is not a library bug —
+it's the contract working as designed — but it is the most common way
+consumers accidentally clobber a layered component library's defaults.
+We've hit it in practice (svelte-treeview showcase, 2026-06: a generic
+`* { padding: 0 }` reset in the demo page's shared stylesheet wiped out
+`.ltree-node-content` padding).
+
+**Recommend to consumers in the component README:** wrap universal
+resets in a named layer. Any layer name will do; the rule just needs to
+be *layered* so the library's layered defaults can win against it.
+
+```css
+/* Consumer's global stylesheet — note the @layer wrapper around the reset */
+@layer reset, page;
+
+@layer reset {
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+}
+
+/* The rest of the consumer's styles stay unlayered — they still beat
+   the library when the consumer intends to override. */
+.my-app-header { padding: 1rem; }
+```
+
+The consumer's intentional overrides remain unlayered, so the escape
+hatch is preserved for *deliberate* overrides. Only the generic reset
+is demoted into a layer so it can't accidentally win.
+
+This is the first thing to check when a consumer reports that the
+component renders with collapsed padding, missing margins, or wrong
+box-sizing despite the variables resolving to sane values.
+
 ---
 
 ## Section banners

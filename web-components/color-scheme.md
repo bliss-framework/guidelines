@@ -5,7 +5,11 @@ correctly across OS preferences, page-level settings, framework theme switches,
 and per-instance overrides — without surprises.
 
 This is a living doc. Update it when a new framework convention emerges or when
-we find a foot-gun the current pattern doesn't catch.
+we find a foot-gun the current pattern doesn't catch. See
+[theme-container.md](./theme-container.md) for *where* the dark-mode
+overrides described below must anchor (the short answer: on the
+component's container — `:host` for web-components,
+`.<prefix>-container` for Svelte).
 
 ---
 

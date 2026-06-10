@@ -6,12 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Documentation only — no source code, no build, no tests, no `package.json`.**
 
-It is the rulebook that governs how the KeenMate / Bliss custom-element
-libraries (`@keenmate/web-grid`, `@keenmate/web-multiselect`,
-`@keenmate/web-daterangepicker`, `@keenmate/web-player`, …) are structured.
-The components themselves live in *other* repositories under
-`C:\Git\BlissFramework\`. Agents working on those components should consult
-the files here before scaffolding CSS, theming, or refactoring.
+It is the rulebook that governs how the KeenMate / Bliss component
+libraries — both web-components (`@keenmate/web-grid`,
+`@keenmate/web-multiselect`, `@keenmate/web-daterangepicker`,
+`@keenmate/web-player`, …) and Svelte components
+(`@keenmate/svelte-treeview`, `@keenmate/svelte-switch`, …) — are
+structured. The components themselves live in *other* repositories
+under `C:\Git\BlissFramework\` (and a few under `C:\Git\KM\`). Agents
+working on those components should consult the files here before
+scaffolding CSS, theming, or refactoring.
+
+The folder `web-components/` is a historical name; the rules inside
+apply equally to Svelte components, with per-technology shapes called
+out in each file.
 
 There are no build/lint/test commands at this level. The shell snippets
 inside `web-components/*.checks.md` are intended to be run inside a
@@ -21,11 +28,13 @@ inside `web-components/*.checks.md` are intended to be run inside a
 
 ```
 web-components/
-├── README.md                       ← Index. Read first to pick the right topic.
-├── css-structure.md / .decisions.md / .checks.md
-├── color-scheme.md  / .decisions.md / .checks.md
-├── base-variables.md / .decisions.md / .checks.md
-└── example-web-player.md           ← Worked example applying all three topics.
+├── README.md                        ← Index. Read first to pick the right topic.
+├── component-intake.md              ← Pre-flight: technology, package, prefix
+├── css-structure.md   / .decisions.md / .checks.md
+├── theme-container.md / .decisions.md / .checks.md   ← :host vs .<prefix>-container
+├── base-variables.md  / .decisions.md / .checks.md
+├── color-scheme.md    / .decisions.md / .checks.md
+└── example-web-player.md            ← Worked example applying the topics.
 ```
 
 Each topic ships as a triad:
@@ -47,9 +56,11 @@ formalized yet — flag and ask before inventing your own.
 5. Walk every applicable `.checks.md` and tick every box, or document the
    exception under `## Known limitations` in the component README.
 
-For a **brand-new component**, the canonical reading order mirrors how
-you'd build it: `css-structure.md` → `base-variables.md` → `color-scheme.md`
-→ `example-web-player.md`.
+For a **brand-new component**, run the intake first
+(`component-intake.md`, or `/new-component`) to fix technology, package
+name, and prefix. Then the canonical reading order mirrors how you'd
+build it: `css-structure.md` → `theme-container.md` →
+`base-variables.md` → `color-scheme.md` → `example-web-player.md`.
 
 ## Non-negotiable invariants (cross-cutting; details in the topic files)
 
@@ -64,25 +75,37 @@ without checking with the team first.
    component.
 3. **No JavaScript-based theme detection.** Dark mode, framework theme, and
    per-instance overrides are 100% CSS. JS is for component behavior only.
-4. **`color-scheme` MUST NOT be declared on `:host`** — it shadows the
-   page's inherited `color-scheme` and breaks dark mode. This is the #1
-   footgun the guidelines exist to prevent.
+4. **`color-scheme` MUST NOT be declared on the component container** —
+   neither `:host` (web-components) nor `.<prefix>-container` (Svelte).
+   It shadows the page's inherited `color-scheme` and breaks dark mode.
+   This is the #1 footgun the guidelines exist to prevent.
 5. **One component → one short prefix.** Existing reservations:
    `wg` (web-grid), `ms` (web-multiselect), `drp` (web-daterangepicker),
-   `wp` (web-player). New components reserve their prefix in
-   `base-variables.md` before coding.
+   `wp` (web-player), `ltree` (svelte-treeview), `sw` (svelte-switch).
+   New components reserve their prefix in `base-variables.md` before
+   coding.
 6. **Two layers of CSS variables, never three.**
    - `--base-*` = cross-component theming hook (set by theme-designer or
-     consumer at `:root`).
-   - `--<prefix>-*` = component-local, defined on `:host`, consumed by feature
-     rules. A parallel taxonomy like `--wp-base-*` is wrong.
+     consumer at `:root` or on a subtree wrapper).
+   - `--<prefix>-*` = component-local, defined on the container (`:host`
+     or `.<prefix>-container`), consumed by feature rules. A parallel
+     taxonomy like `--wp-base-*` is wrong.
+   - `--<prefix>-*` declarations MUST live on the container — never on
+     `:root` / `html` / `body`. Subtree theming breaks otherwise; see
+     `theme-container.md` and the svelte-treeview rc10 migration for
+     the concrete failure mode.
 7. **`@layer variables, component, overrides;`** is the canonical cascade in
    every `main.css`. Every `@import` must specify its layer.
 8. **Every visible color resolves through a variable** — no hex/rgb literals
    in feature files. `variables.css` and `dark-mode.css` are the only files
    that may hold color literals.
-9. **Fallbacks for colors use `light-dark(<light>, <dark>)`**, not bare light
-   literals. Never write a single-value `var(--base-X)` with no fallback.
+9. **Fallbacks live at the definition site, not the read site.** Every
+   `var(--base-X)` read inside a container's variable declaration
+   needs a fallback (literal or chain); color fallbacks use
+   `light-dark(<light>, <dark>)`. Feature-file reads of
+   `var(--<prefix>-X)` deliberately do *not* duplicate the fallback —
+   the container's chain already guarantees the variable resolves. See
+   `base-variables.md` → "Fallbacks live at the definition site".
 10. **BEM with the component prefix on every class** —
     `<prefix>__element--modifier`. Two underscore levels max.
 
