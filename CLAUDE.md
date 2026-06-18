@@ -28,13 +28,16 @@ inside `web-components/*.checks.md` are intended to be run inside a
 
 ```
 web-components/
-├── README.md                        ← Index. Read first to pick the right topic.
-├── component-intake.md              ← Pre-flight: technology, package, prefix
-├── css-structure.md   / .decisions.md / .checks.md
-├── theme-container.md / .decisions.md / .checks.md   ← :host vs .<prefix>-container
-├── base-variables.md  / .decisions.md / .checks.md
-├── color-scheme.md    / .decisions.md / .checks.md
-└── example-web-player.md            ← Worked example applying the topics.
+├── README.md                              ← Index. Read first to pick the right topic.
+├── component-intake.md                    ← Pre-flight: technology, package, prefix
+├── component-structure.md / .decisions.md / .checks.md   ← Layers, files, classes, TS suffixes
+├── naming-conventions.md  / .decisions.md / .checks.md   ← Tags, attributes, callbacks, events, BEM
+├── css-structure.md       / .decisions.md / .checks.md
+├── theme-container.md     / .decisions.md / .checks.md   ← :host vs .<prefix>-container
+├── base-variables.md      / .decisions.md / .checks.md
+├── color-scheme.md        / .decisions.md / .checks.md
+├── readme-structure.md    / .decisions.md / .checks.md   ← Slim README + docs/ folder split
+└── example-web-player.md                  ← Worked example applying the topics.
 ```
 
 Each topic ships as a triad:
@@ -59,8 +62,9 @@ formalized yet — flag and ask before inventing your own.
 For a **brand-new component**, run the intake first
 (`component-intake.md`, or `/new-component`) to fix technology, package
 name, and prefix. Then the canonical reading order mirrors how you'd
-build it: `css-structure.md` → `theme-container.md` →
-`base-variables.md` → `color-scheme.md` → `example-web-player.md`.
+build it: `component-structure.md` → `naming-conventions.md` →
+`css-structure.md` → `theme-container.md` → `base-variables.md` →
+`color-scheme.md` → `readme-structure.md` → `example-web-player.md`.
 
 ## Non-negotiable invariants (cross-cutting; details in the topic files)
 
@@ -75,10 +79,20 @@ without checking with the team first.
    component.
 3. **No JavaScript-based theme detection.** Dark mode, framework theme, and
    per-instance overrides are 100% CSS. JS is for component behavior only.
-4. **`color-scheme` MUST NOT be declared on the component container** —
-   neither `:host` (web-components) nor `.<prefix>-container` (Svelte).
-   It shadows the page's inherited `color-scheme` and breaks dark mode.
-   This is the #1 footgun the guidelines exist to prevent.
+4. **A *bare* `color-scheme` MUST NOT be declared on the component
+   container** — neither bare `:host` (web-components) nor bare
+   `.<prefix>-container` (Svelte). The unconditional version shadows
+   the page's inherited `color-scheme` and breaks dark mode; this is
+   the #1 footgun the guidelines exist to prevent.
+   **Conditional declarations are allowed and often preferred**:
+   `:host([data-theme="dark"]) { color-scheme: dark }`,
+   `:host-context([data-bs-theme="dark"]) { color-scheme: dark }`,
+   `.<prefix>-container[data-theme="dark"] { color-scheme: dark }`,
+   etc. fire only when the consumer has signalled their theme intent
+   and are the basis of Strategy B in `color-scheme.md`. See
+   `color-scheme.md` → "Two strategies for framework-class &
+   per-instance signals" and check C-CS-1 for the bare-vs-conditional
+   distinction.
 5. **One component → one short prefix.** Existing reservations:
    `wg` (web-grid), `ms` (web-multiselect), `drp` (web-daterangepicker),
    `wp` (web-player), `ltree` (svelte-treeview), `sw` (svelte-switch).

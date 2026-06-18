@@ -14,9 +14,15 @@ Throughout these checks `<container>` means `:host` (for web-components)
 or `.<prefix>-container` (for Svelte), and `<prefix>` means the
 component's chosen prefix (`ms`, `wg`, `drp`, `ltree`, …).
 
+Each check is tagged **`[auto]`**, **`[semi]`**, or **`[manual]`** — see
+[css-structure.checks.md](./css-structure.checks.md) for the meaning of
+each tier.
+
 ---
 
 ## C-TC-1 — No `--<prefix>-*` variables on `:root` / `html` / `body`
+
+**Tier:** `[auto]` (requires component prefix as input)
 
 **What:** Component-local variables MUST live on the container, never
 on the document root. This is the rule that fails subtree theming.
@@ -39,34 +45,61 @@ the wrapper isn't visible. The svelte-treeview rc10 bug, exactly.
 
 ---
 
-## C-TC-2 — Container paints a default background
+## C-TC-2 — Component renders a visible surface standalone
 
-**What:** The container has `background: var(--<prefix>-bg, …)` so the
-component is visible standalone.
+**Tier:** `[semi]` — Option A is mechanical (grep for the `background: var(--<prefix>-bg)` declaration); Options B and C require reading the README's Theming section to confirm documented intent and identify the painted element.
+
+**What:** When mounted on a plain page (no `--base-*` set, no theme
+class), the component produces a visible surface. The guideline
+recognizes three patterns for *where* that surface comes from
+(D-TC-3); the check accepts whichever pattern the component declares.
 
 **How to verify:**
-```bash
-# For web components
-grep -nE "^\s*:host\s*\{" src/css/*.css -A 50 \
-  | grep -E "background\s*:\s*var\(--<prefix>-bg"
 
-# For Svelte
-grep -nE "^\s*\.<prefix>-container\s*\{" src/css/*.css -A 50 \
-  | grep -E "background\s*:\s*var\(--<prefix>-bg"
-```
+1. **D-TC-3 option A — self-painted host** *(default)*. The
+   container declares `background: var(--<prefix>-bg, …)`:
+   ```bash
+   grep -nE "^\s*:host\s*\{" src/css/*.css -A 60 \
+     | grep -E "background\s*:\s*var\(--<prefix>-bg"
+   ```
+   **Pass:** match found. **Fail:** no match AND no D-TC-3 B or C
+   declaration.
 
-**Pass:** The container sets `background` from the component-local bg
-variable.
+2. **D-TC-3 option B — intentionally transparent** (inline switches,
+   badges). Container has no `background`. **Pass requires:** the
+   component README's "Theming" section explicitly says so.
+
+3. **D-TC-3 option C — wrapper host with painted chrome**
+   (form-control components). Container has no `background`, but a
+   specific internal element paints. Identify the chrome element
+   (typically `.<prefix>__input` or `.<prefix>__viewport`) and
+   confirm it declares `background: var(--<prefix>-<element>-bg)`:
+   ```bash
+   grep -nE "background\s*:\s*var\(--<prefix>-(input|viewport|surface)-bg" src/css/*.css
+   ```
+   **Pass:** match found AND the README's "Theming" section
+   identifies the component as a wrapper-host (form-control) and
+   names the painted element.
 
 **Failure mode:** Component is invisible (or a flash of unstyled
-content) on a page that doesn't pre-paint a surface behind it.
+content) on a page that doesn't pre-paint a surface behind it AND
+the design intent isn't documented.
 
-**Exception:** if D-TC-3 chose option B (intentionally transparent),
-skip this check and confirm the README documents the opt-out.
+**Worked examples (passing):**
+- **A:** `@keenmate/svelte-treeview` —
+  `.ltree-container { background: var(--ltree-bg) }`.
+- **B:** `@keenmate/svelte-switch` — transparent inline control,
+  documented in README as "no host surface; pill paints itself."
+- **C:** `@keenmate/web-multiselect` — `:host` has no background;
+  `.ms__input { background: var(--ms-input-bg) }` paints the
+  visible chrome. README's Theming section names this as the
+  form-control wrapper-host pattern.
 
 ---
 
 ## C-TC-3 — `--<prefix>-bg` chains through `--base-main-bg` with `light-dark()`
+
+**Tier:** `[auto]` (regex on `variables.css`)
 
 **What:** The default background variable reads through `--base-main-bg`
 and falls back to `light-dark(<light>, <dark>)` so OS dark mode works
@@ -91,29 +124,68 @@ C-BV-2 (every var has a fallback) and
 
 ---
 
-## C-TC-4 — No `color-scheme` on the container
+## C-TC-4 — No *bare* `color-scheme` on the container (conditional is fine)
 
-**What:** The container does NOT declare `color-scheme: light`, `color-scheme: dark`,
-or `color-scheme: light dark`. Declaring it shadows the page's
-inherited `color-scheme` and breaks dark mode.
+**Tier:** `[semi]` — grep finds every `color-scheme` match; classifying each selector as bare vs conditional is a regex/lookup step
+
+**What:** The container does NOT declare `color-scheme: light`,
+`color-scheme: dark`, or `color-scheme: light dark` on its **bare**
+selector (`:host` / `.<prefix>-container` with no further qualifier).
+A bare declaration shadows the page's inherited `color-scheme` for
+*every* instance and breaks dark mode inheritance.
+
+**Conditional declarations are explicitly allowed** — and are the
+recommended "Strategy B" pattern in
+[color-scheme.md](./color-scheme.md). Selectors like
+`:host([data-theme="dark"])`, `:host-context([data-bs-theme="dark"])`,
+`.<prefix>-container[data-theme="dark"]`, or
+`[data-theme="dark"] .<prefix>-container` fire only when the consumer
+has explicitly signalled their theme intent. Setting
+`color-scheme: dark` inside such a block *amplifies* the consumer's
+signal — light-dark() in the component's variables resolves to dark —
+while leaving the consumer's own `--base-*` overrides untouched.
 
 **How to verify:**
 ```bash
 grep -nE "color-scheme" src/css/*.css
 ```
 
-**Pass:** No match inside any `:host { … }` or `.<prefix>-container { … }`
-block. Matches inside `@media` queries, comments, or descendant rules
-are fine.
+For every match, classify it:
 
-**Failure mode:** Component renders light on a dark page even when
-`body { color-scheme: dark }` is set. Duplicates
+| Selector shape | Verdict |
+|---|---|
+| `:host { color-scheme: ... }` (bare) | ❌ Fail |
+| `.<prefix>-container { color-scheme: ... }` (bare) | ❌ Fail |
+| `:host([attr]) { color-scheme: ... }` | ✅ Conditional — pass |
+| `:host-context(...) { color-scheme: ... }` | ✅ Conditional — pass |
+| `.<prefix>-container[attr] { color-scheme: ... }` | ✅ Conditional — pass |
+| `[ancestor-attr] .<prefix>-container { color-scheme: ... }` | ✅ Conditional — pass |
+| Inside `@media` query | ✅ Pass |
+| Inside a comment | ✅ Pass |
+
+**Pass:** Every match is either inside a comment, inside `@media`, or
+on a conditional selector (one of the rows marked ✅).
+
+**Failure mode:** A bare `:host { color-scheme }` shadows the page's
+inheritance for every instance. The component renders light on a dark
+page even when `body { color-scheme: dark }` is set. Duplicates
 [color-scheme.checks.md](./color-scheme.checks.md) C-CS-1 — passing one
 passes the other.
+
+**Worked example (passing):** `@keenmate/web-multiselect`
+`src/css/dark-mode.css` declares `color-scheme: dark` on five
+conditional selectors (`:host([data-theme="dark"])`,
+`:host-context([data-theme="dark"])`,
+`:host-context([data-bs-theme="dark"])`, `:host-context(.dark)`,
+plus light counterparts). The bare `:host` block in
+`src/css/variables.css` carries a long explanatory comment about *why*
+it doesn't declare `color-scheme` there.
 
 ---
 
 ## C-TC-5 — Per-instance `data-theme` selectors exist (dark AND light)
+
+**Tier:** `[auto]` (requires prefix + knowledge of container shape)
 
 **What:** The stylesheet defines per-instance overrides for both
 dark and light on the container.
@@ -144,6 +216,8 @@ mismatched set bleeds through.
 
 ## C-TC-6 — Dark/light overrides target the container, not arbitrary scopes
 
+**Tier:** `[semi]` — needs to read each block in `dark-mode.css` and judge whether the selector targets the container; mostly mechanical but the selector shapes vary
+
 **What:** Every dark-mode and light-mode rule sets variables on the
 container, not on descendants or arbitrary scopes.
 
@@ -166,6 +240,8 @@ because variables defined on a descendant only override one rule.
 
 ## C-TC-7 — `display: block` (or documented exception) on container
 
+**Tier:** `[auto]`
+
 **What:** The container's display is `block`, `inline-block`, or
 another **non-`contents`** block-level value.
 
@@ -181,30 +257,55 @@ that's implicit and shouldn't be relied on).
 
 ---
 
-## C-TC-8 — `position: relative` on the container
+## C-TC-8 — Container is the positioning context (or every floating panel uses `position: fixed`)
 
-**What:** The container is the positioning context for any
-absolutely-positioned descendants (tooltips, popovers, dropdown chrome
-that floats inside the component).
+**Tier:** `[semi]` — Path 1 is mechanical (`grep position: relative on the container`); the Path-2 fixed-floating exception needs to enumerate floating panels and verify each uses `fixed`, plus checking that absolute descendants anchor to an internal positioned wrapper
+
+**What:** Either the container is the positioning context for
+absolutely-positioned descendants (the default), OR the component is
+designed so that nothing requires `:host` to be the offsetParent —
+the "fixed-floating-UI" pattern.
 
 **How to verify:**
 ```bash
+# Path 1 — container is :host with position: relative
 grep -nE "^\s*position\s*:" src/css/*.css | grep -E "(:host|\.<prefix>-container)"
+
+# Path 2 — every floating panel uses position: fixed
+grep -nE "^\s*position\s*:\s*fixed" src/css/floating.css
+
+# Path 3 — in-flow absolute descendants anchor to an internal wrapper
+grep -nE "^\s*position\s*:\s*relative" src/css/*.css | grep -vE "(:host|\.<prefix>-container)"
 ```
 
-**Pass:** `position: relative` declared on the container.
+**Pass — any of:**
+
+1. **Default:** `position: relative` declared on the container, OR
+2. **Fixed-floating exception:** every floating-UI-anchored panel
+   (`.<prefix>__dropdown`, `.<prefix>__tooltip`,
+   `.<prefix>__popover`, …) declares `position: fixed`, AND every
+   in-flow `position: absolute` descendant anchors to an internal
+   `position: relative` wrapper inside the component
+   (`.<prefix>__input-wrapper`, `.<prefix>__viewport`, etc.) rather
+   than reaching out to `:host`.
 
 **Failure mode:** Floating UI inside the component anchors to the
-nearest positioned ancestor on the consumer's page instead of to the
-component's own root. Hard to debug for the consumer.
+nearest positioned ancestor on the consumer's page instead of where
+intended. Hard to debug for the consumer.
 
-**Exception:** if the component has no internally-positioned
-descendants AND will never grow one, `position: static` is acceptable.
-Document.
+**Worked example (Path 2 + 3 passing):** `@keenmate/web-multiselect`
+has no `position: relative` on `:host`. `floating.css` declares
+`position: fixed` on `.ms__dropdown`, `.ms__hint`,
+`.ms__badge-tooltip`, `.ms__selected-popover`. The in-flow
+`.ms__toggle` and `.ms__counter` (`position: absolute`) anchor to
+`.ms__input-wrapper { position: relative }`. The component never
+needs `:host` to be the offsetParent.
 
 ---
 
 ## C-TC-9 — Container is a single root element
+
+**Tier:** `[semi]` — auto-pass for web-components (`:host` is always single); Svelte requires reading the top-level `.svelte` file to confirm a single root
 
 **What:** The component renders exactly one container — not a sibling
 pair of containers, not a fragment.
@@ -240,6 +341,8 @@ to one of the roots but not the other, or to none at all.
 
 ## C-TC-10 — Svelte: `theme` prop forwards to container `data-theme`
 
+**Tier:** `[semi]` (Svelte only — needs to read the top-level `.svelte` file; N/A for web-components)
+
 **What:** Svelte components expose a `theme` prop and forward it to
 `data-theme` on the container.
 
@@ -266,9 +369,13 @@ directly, no prop wiring needed. Mark N/A and move on.
 
 ---
 
-## C-TC-11 — README documents the container contract
+## C-TC-11 — `docs/theming.md` documents the container contract
 
-**What:** The component's `README.md` "Theming" section documents:
+**Tier:** `[manual]` (read the file, judge coverage)
+
+**What:** The component's `docs/theming.md` (per the
+[readme-structure](./readme-structure.md) triad — the home of the
+theming contract since the README slim-down) documents:
 
 - The container selector (`:host` or `.<prefix>-container`).
 - The default background and the opt-out (`--<prefix>-bg: transparent`).
@@ -276,17 +383,26 @@ directly, no prop wiring needed. Mark N/A and move on.
 - The framework conventions honored on ancestors.
 - Any portal / popover quirks (D-TC-7).
 
-**How to verify:** Open `packages/<component>/README.md`, find the
-Theming section, confirm coverage.
+**How to verify:** Open `packages/<component>/docs/theming.md`, find
+the container section, confirm coverage.
 
-**Pass:** Section exists and covers the four points above.
+**Pass:** Section exists and covers the five points above.
 
 **Failure mode:** Consumers don't know where the theme anchors; they
 try to set `--<prefix>-*` on `:root` and find it doesn't override.
 
+**Exception:** A component that pre-dates the readme-structure triad
+(`docs/theming.md` not yet split out) can still pass if the
+information lives in `README.md` under a "Theming" section — but
+flag the file as a candidate for the readme-structure migration
+(see [readme-structure.decisions.md](./readme-structure.decisions.md)
+D-RS-6).
+
 ---
 
 ## C-TC-12 — Subtree theming smoke test (browser)
+
+**Tier:** `[manual]` (browser observation)
 
 **What:** Two instances of the component on the same page, with
 different `--base-*` wrappers, render differently.
@@ -325,6 +441,8 @@ flaky.
 
 ## C-TC-13 — Standalone render works
 
+**Tier:** `[manual]` (browser observation)
+
 **What:** The component renders correctly on a plain page with no
 `--base-*`, no theme classes, no wrapper. Cross-reference
 [base-variables.checks.md](./base-variables.checks.md) C-BV-10.
@@ -348,6 +466,8 @@ Always ⚠️ Manual.
 ---
 
 ## C-TC-14 — Per-instance override works end-to-end (browser)
+
+**Tier:** `[manual]` (browser observation)
 
 **What:** Setting `data-theme="dark"` on a single instance, on an
 otherwise-light page, flips that instance to dark. Symmetric for
@@ -375,25 +495,88 @@ Always ⚠️ Manual.
 
 ---
 
+## C-TC-15 — FOUC prevention rule targets the right tag (web-components only)
+
+**Tier:** `[auto]` (two greps + string comparison; N/A for Svelte or D-TC-9 = B)
+
+**What:** If the component ships a FOUC-prevention rule in `base.css`
+(D-TC-9 = A), the tag name in the `<tag>:not(:defined)` selector
+matches the string passed to `customElements.define(...)` in the TS
+source. If the component opted out (D-TC-9 = B), this check is N/A.
+
+See [theme-container.md](./theme-container.md) → "FOUC prevention" for
+the rationale and the canonical pattern.
+
+**How to verify (web-component):**
+
+```bash
+# 1. Grep the tag(s) used in :not(:defined) rules in base.css
+grep -nE "^\s*[a-z][a-z0-9-]+\s*:not\(:defined\)" src/css/base.css
+
+# 2. Grep the registered tag(s) from the TS source
+grep -rnE "customElements\.define\(['\"][^'\"]+['\"]" src
+
+# 3. Compare — every CSS tag must appear in a define() call, and
+#    every define() tag must have a matching CSS rule.
+```
+
+**Pass:** Every tag found in step 1 appears verbatim in a step-2
+result, and vice versa. For a single-tag component, exactly one tag
+on each side, matching.
+
+**Failure modes:**
+
+- **Tag mismatch (silent rename trap).** `multi-select:not(:defined)`
+  in `base.css` but `customElements.define('web-multiselect', ...)`
+  in TS. The FOUC rule never matches; pre-upgrade flash and layout
+  shift reappear.
+- **CSS prefix used instead of the tag.** `ms:not(:defined)` instead
+  of `web-multiselect:not(:defined)`. The variable prefix is not the
+  tag.
+- **Rule missing on a visible-chrome component** AND D-TC-9 was
+  answered A. Add the rule.
+- **Define() result missing.** No `customElements.define` call found
+  — likely the component is library-mode and consumers register
+  manually. Confirm the docs name the expected tag and that
+  `base.css` uses that exact name.
+
+**N/A:**
+
+- Svelte components (no upgrade phase).
+- Components that declared D-TC-9 = B (intentionally no FOUC
+  prevention) — confirm the README "Known limitations" section
+  explains why.
+
+**Worked example (failing):** `@keenmate/web-multiselect`
+v1.12.0-rc01 — `base.css:13` declares `multi-select:not(:defined)`
+but `src/web-component.ts:1154` registers
+`customElements.define('web-multiselect', ...)`. Carried over from a
+pre-rename version; FOUC prevention silently broken from that point.
+
+---
+
 ## Summary checklist
 
 Paste into PR description, tick every box:
 
 ```
-[ ] C-TC-1  no --<prefix>-* on :root / html / body
-[ ] C-TC-2  container paints default background
-[ ] C-TC-3  --<prefix>-bg chains through --base-main-bg with light-dark()
-[ ] C-TC-4  no color-scheme on container
-[ ] C-TC-5  per-instance data-theme dark AND light selectors exist
-[ ] C-TC-6  dark/light overrides target the container
-[ ] C-TC-7  display: block (or documented exception)
-[ ] C-TC-8  position: relative on container
-[ ] C-TC-9  single root container
-[ ] C-TC-10 Svelte: theme prop forwards to data-theme (N/A for web-components)
-[ ] C-TC-11 README documents the container contract
-[ ] C-TC-12 subtree theming smoke test passed
-[ ] C-TC-13 standalone render works
-[ ] C-TC-14 per-instance override works in browser
+[ ] C-TC-1  [auto]   no --<prefix>-* on :root / html / body
+[ ] C-TC-2  [semi]   container paints default background
+[ ] C-TC-3  [auto]   --<prefix>-bg chains through --base-main-bg with light-dark()
+[ ] C-TC-4  [semi]   no bare color-scheme on container (conditional ok)
+[ ] C-TC-5  [auto]   per-instance data-theme dark AND light selectors exist
+[ ] C-TC-6  [semi]   dark/light overrides target the container
+[ ] C-TC-7  [auto]   display: block (or documented exception)
+[ ] C-TC-8  [semi]   position: relative on container (or fixed-floating exception)
+[ ] C-TC-9  [semi]   single root container
+[ ] C-TC-10 [semi]   Svelte: theme prop forwards to data-theme (N/A web-components)
+[ ] C-TC-11 [manual] docs/theming.md documents the container contract
+[ ] C-TC-12 [manual] subtree theming smoke test passed
+[ ] C-TC-13 [manual] standalone render works
+[ ] C-TC-14 [manual] per-instance override works in browser
+[ ] C-TC-15 [auto]   FOUC rule tag matches customElements.define (web-component; N/A Svelte / D-TC-9 = B)
+
+Tier totals: 5 auto, 6 semi, 4 manual
 ```
 
 If any box is unchecked, the work is not done.

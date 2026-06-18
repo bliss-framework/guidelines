@@ -33,15 +33,51 @@ Each guideline topic comes as up to three files:
 If a topic only has `<topic>.md`, the decisions/checks haven't been formalized
 yet (TBD).
 
+### Check tiers
+
+Each check inside a `.checks.md` carries a tier tag right under its heading:
+
+- **`[auto]`** — purely mechanical. A regex / shell one-liner returns the
+  pass/fail verdict. Runnable in CI with no agent in the loop. Today these
+  live as inline `bash` blocks; the goal is a companion `.checks.sh` per
+  triad that consolidates them into one runnable script.
+- **`[semi]`** — mostly mechanical but needs minimal context (e.g. knowing
+  the component's CSS prefix, web-component vs Svelte). Often runnable
+  after a small detection prelude.
+- **`[manual]`** — genuinely needs judgment: reading function bodies,
+  observing the browser, judging accuracy of prose. An agent or human
+  reads the code, runs the dev server, decides.
+
+Current tier totals across the 89 checks (CSS structure + theme container
++ base variables + color scheme + component structure + naming
+conventions + readme structure):
+
+| Triad | auto | semi | manual | total |
+|-------|-----:|-----:|-------:|------:|
+| css-structure | 9 | 2 | 1 | 12 |
+| theme-container | 5 | 6 | 4 | 15 |
+| base-variables | 6 | 5 | 3 | 14 |
+| color-scheme | 2 | 5 | 3 | 10 |
+| component-structure | 7 | 2 | 2 | 11 |
+| naming-conventions | 7 | 4 | 1 | 12 |
+| readme-structure | 7 | 7 | 1 | 15 |
+| **Total** | **43** | **31** | **15** | **89** |
+
+That's roughly 48% auto, 35% semi, 17% manual — most of the rulebook
+*can* be mechanized; the open work is writing the runner script(s).
+
 ## When to consult which file
 
 | If you are… | Read |
 |-------------|------|
 | Starting a brand-new component (picking technology, package name, CSS prefix) | [component-intake.md](./component-intake.md) — or run `/new-component` for an interactive walkthrough |
+| Setting up or refactoring the component's internal architecture (Element / Logic / Service / Side layer split, file organization, class suffixes, TS interface suffixes) | [component-structure.md](./component-structure.md) → [.decisions](./component-structure.decisions.md) → implement → [.checks](./component-structure.checks.md) |
+| Settling the component's public API names (custom-element tag, HTML attributes, `CustomEvent` names, callback hierarchy, internal method naming, BEM prefix application) | [naming-conventions.md](./naming-conventions.md) → [.decisions](./naming-conventions.decisions.md) → implement → [.checks](./naming-conventions.checks.md) |
 | Scaffolding a new component's CSS, or refactoring an existing one's structure | [css-structure.md](./css-structure.md) → [.decisions](./css-structure.decisions.md) → implement → [.checks](./css-structure.checks.md) |
 | Choosing or refactoring the component's root container (`:host` for web-components, `.<prefix>-container` for Svelte), wiring per-instance `data-theme`, deciding default background | [theme-container.md](./theme-container.md) → [.decisions](./theme-container.decisions.md) → implement → [.checks](./theme-container.checks.md) |
 | Adding or changing how a component reacts to dark mode | [color-scheme.md](./color-scheme.md) → [.decisions](./color-scheme.decisions.md) → implement → [.checks](./color-scheme.checks.md) |
 | Defining new CSS variables on a component, or wiring `--base-*` hooks | [base-variables.md](./base-variables.md) → [.decisions](./base-variables.decisions.md) → implement → [.checks](./base-variables.checks.md) |
+| Writing or restructuring a component's external documentation (slim README + `docs/` folder) | [readme-structure.md](./readme-structure.md) → [.decisions](./readme-structure.decisions.md) → implement → [.checks](./readme-structure.checks.md) |
 | Looking for a concrete worked example | [example-web-player.md](./example-web-player.md) |
 
 If the task touches more than one topic, read every applicable `.md` before
@@ -50,11 +86,15 @@ every applicable `.checks.md` before declaring done.
 
 **Starting a brand-new component?** Run the intake first
 (`component-intake.md`, or `/new-component`) to lock down technology,
-package identity, and CSS prefix. Then read in order: `css-structure.md`
+package identity, and CSS prefix. Then read in order:
+`component-structure.md` → `naming-conventions.md` → `css-structure.md`
 → `theme-container.md` → `base-variables.md` → `color-scheme.md` →
-`example-web-player.md`. The ordering mirrors how you'd actually build
-the component: intake first; then file layout, root container scope,
-variables that hang off it, dark-mode overrides.
+`readme-structure.md` → `example-web-player.md`. The ordering mirrors
+how you'd actually build the component: intake first; then
+architecture (layers / classes / interfaces); then naming (tag /
+attributes / callbacks / events); then CSS (file layout, root
+container scope, variables, dark-mode overrides); then external
+documentation (slim README + `docs/` split).
 
 ---
 
@@ -62,6 +102,43 @@ variables that hang off it, dark-mode overrides.
 
 Tick every box, or document the exception in a `## Known limitations` section
 of the component's README.
+
+### Component structure
+- [ ] Element layer (`MultiSelectElement` etc.) is a thin I/O wrapper
+      with no business state. See `component-structure.md`.
+- [ ] Logic class is framework-agnostic (no `'svelte'` / `'react'` /
+      `'vue'` runtime imports). Svelte 5 runes inside a `.svelte.ts`
+      file are allowed.
+- [ ] Service classes don't import each other; the Logic class brokers
+      cross-Service calls.
+- [ ] Side-layer files (`types.ts`, `logger.ts`, helpers) don't import
+      from the Element / Logic / Service layers.
+- [ ] No Manager layer unless it coordinates two or more Logic classes
+      (Bliss "Management only if adds value" rule).
+- [ ] TS interface suffixes from the closed set
+      (`Config` / `EventDetail` / `Context` / `Spec` / none).
+- [ ] No premature interfaces (`IFoo` with one implementation).
+
+### Naming conventions
+- [ ] Custom-element tag is hyphenated and family-prefixed
+      (`<web-multiselect>`). See `naming-conventions.md`.
+- [ ] Custom-element tag agrees with `customElements.define`.
+- [ ] CustomEvent names are bare lowercase strings (`'select'`,
+      `'change'`) — no `on*` prefix, no `Event` suffix.
+- [ ] Boolean config fields use `is*` / `should*` / `has*` / `can*`
+      prefix.
+- [ ] Notification callbacks use the host-matched shape: `*Callback`
+      for web-component config / `on*` for Svelte component props.
+- [ ] Interceptors use `before*Callback`; data extractors use
+      `get*Callback` paired with `*Member`; behavior providers use
+      plain `*Callback`.
+- [ ] One `ATTRIBUTE_TABLE` constant drives `observedAttributes`,
+      initial parsing, and `attributeChangedCallback` (web-components
+      only).
+- [ ] Internal methods use `handle*`; stored listener / callback
+      references use `*Handler`.
+- [ ] No magic strings inline — event names, attribute names, log
+      categories live in top-of-file constants.
 
 ### CSS structure
 - [ ] CSS folder follows the canonical file set (Tier 1 + Tier 2 always
@@ -75,12 +152,22 @@ of the component's README.
 - [ ] All `--<prefix>-*` variables declared on the container (`:host` for
       web-components, `.<prefix>-container` for Svelte) — never on
       `:root` / `html` / `body`. See `theme-container.md`.
-- [ ] Container paints its own default background via
-      `background: var(--<prefix>-bg, …)`, unless intentionally transparent
-      (documented in README).
-- [ ] No `color-scheme` declaration on the container.
-- [ ] `display: block` (or documented `inline-block`) and
-      `position: relative` on the container.
+- [ ] One of: container paints its own default background via
+      `background: var(--<prefix>-bg, …)` (composite components), OR a
+      named internal element (e.g. `.<prefix>__input`) paints and the
+      README's Theming section documents the wrapper-host pattern
+      (form-control components), OR the README documents intentional
+      transparency (inline-style atoms). See D-TC-3 in
+      `theme-container.decisions.md`.
+- [ ] No *bare* `color-scheme` declaration on the container.
+      Conditional `color-scheme` on `:host(...)` / `:host-context(...)` /
+      `.<prefix>-container[...]` selectors is fine — see Strategy B in
+      `color-scheme.md`.
+- [ ] `display: block` (or documented `inline-block`) on the container.
+- [ ] `position: relative` on the container — unless every floating
+      panel uses `position: fixed` AND in-flow `position: absolute`
+      descendants anchor to an internal positioned wrapper (the
+      fixed-floating-UI exception in C-TC-8 / D-TC-6).
 - [ ] Per-instance `data-theme="dark"` / `="light"` selectors exist and
       set a symmetric variable set.
 - [ ] Svelte components: `theme` prop exposed and forwarded to
@@ -97,8 +184,10 @@ of the component's README.
       light literals. See `color-scheme.md`.
 
 ### Dark mode
-- [ ] No `:host { color-scheme: ... }` declaration anywhere — this breaks
-      inheritance from the page.
+- [ ] No *bare* `:host { color-scheme: ... }` declaration — that
+      shadows the page's inheritance for every instance. Conditional
+      `:host([data-theme="dark"]) { color-scheme: dark }` (Strategy B)
+      is fine and often preferred.
 - [ ] `:host-context()` selectors catch the framework conventions
       (`data-theme`, `data-bs-theme`, `.dark`, `.light`).
 - [ ] `:host([data-theme="dark"])` / `:host([data-theme="light"])` provide
@@ -106,11 +195,33 @@ of the component's README.
 - [ ] At least one Playwright spec asserts WCAG contrast in dark mode for the
       component's primary surfaces. Target ≥ 3:1 for non-text UI, ≥ 4.5:1 for
       body text.
+- [ ] Tooltips (and any other surfaces portaled outside the
+      container — popovers, dropdowns rendered to `document.body`)
+      invert correctly in dark mode. Custom in-shadow tooltips chain
+      through `var(--<prefix>-tooltip-*, var(--base-tooltip-*,
+      light-dark(…)))`; portaled tooltips receive `data-theme` from
+      the container at open time (or read `--base-tooltip-*`
+      directly). See C-CS-10.
 
 ### Documentation
-- [ ] Component `README.md` documents which `--base-*` variables it consumes,
-      which `--<prefix>-*` it exposes, and the supported theme conventions
-      (`data-theme`, etc.).
+- [ ] `README.md` is a slim landing page (≤ 400 lines, target 200) — it
+      covers what / what's-new / demos / install / one quick-start
+      snippet / license, and links into `docs/`. See
+      `readme-structure.md`.
+- [ ] `docs/` folder exists with `usage.md`, `theming.md`,
+      `examples.md`, and (unless D-RS-2 = B) `accessibility.md`. The
+      README's "Demos & docs" section links each one via a relative
+      path.
+- [ ] `docs/theming.md` is the single home of the theming contract —
+      container (C-TC-11), variables (C-BV-8), color-scheme (C-CS-8),
+      cascade layers (C-CSS-10). The README no longer carries those
+      sections.
+- [ ] `docs/usage.md` covers every public attribute / prop, event /
+      callback, slot, and imperative method (incl. the
+      `ATTRIBUTE_TABLE` for web-components).
+- [ ] `docs/accessibility.md` covers keyboard navigation, ARIA
+      roles/states, focus management (N/A for purely display
+      components per D-RS-2).
 - [ ] CHANGELOG entry for the version that lands the theming work.
 
 ---

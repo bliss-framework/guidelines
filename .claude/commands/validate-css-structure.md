@@ -41,54 +41,70 @@ spuriously fail the component.
 Identify the component's **prefix** from the README / variables.css /
 manifest — most BEM checks need it.
 
-## Step 3 — Run every check (C-CSS-1 through C-CSS-12)
+### Step 2.5 — Load accepted-deviation registers
 
-For each check, execute the "How to verify" from `css-structure.checks.md`
-adapted to this component's actual paths. Notes:
+Before evaluating any check, look for two files that record deviations
+the team has already accepted. Their content downgrades matching
+`❌ Fail` verdicts to `⚠️ Exception` (or `✅ Pass` per the note) and
+removes the item from the "Recommended actions" section.
 
-- **C-CSS-1** (canonical file set: `main.css`, `variables.css`, `base.css`,
-  `controls.css`, `floating.css`, `states.css`, `animations.css`,
-  `dark-mode.css`): use Glob to list `src/css/*.css`. If any of the eight
-  is missing AND the README does not document the lean strategy, fail.
-  Skip this check if D-CSS-1 chose lean (document the skip).
-- **C-CSS-2** (no underscore prefix): Glob `src/css/_*.css`. Any match is
-  a failure — unless D-CSS-4 chose underscore convention (legacy) and the
-  README documents it.
-- **C-CSS-3** (`@layer` declared and used): Read `main.css`. Confirm
-  exactly one `@layer variables, component, overrides;` declaration and
-  that every `@import` includes `layer(...)`. Skip if D-CSS-3 chose option
-  C (no layers, legacy).
-- **C-CSS-4** (stub comment in empty Tier-2 files): for each empty Tier-2
-  file, Read line 1 and confirm a `/* ... */` stub.
-- **C-CSS-5** (every file imported by main.css): list all `.css` files
-  except `main.css` itself, Grep `main.css` for each. Files not imported
-  are orphans.
-- **C-CSS-6** (section banners on files > 100 lines): for each `.css`
-  file with > 100 lines, Grep for `==========`. The threshold may be
-  different per D-CSS-7 — check the README.
-- **C-CSS-7** (BEM convention): Grep all class selectors and verify each
-  starts with `.<prefix>__`. False positives include pseudo-selectors
-  (`:hover`, `::before`) — these are not classes, ignore them. Skip if
-  D-CSS-6 chose options B or C (different convention).
-- **C-CSS-8** (no hardcoded colors in feature files): same regex as
-  C-BV-1 in base-variables.checks.md, but the scope here is the feature
-  files (everything except `variables.css` and `dark-mode.css`). Cross-
-  references base-variables — if you're running both validators, you can
-  share the result.
-- **C-CSS-9** (no mixed-bag files): inspect each Tier-3 file (or any
-  feature file) and confirm its rules all relate to one feature. This is
-  a judgment call — flag any file whose name does not describe its actual
-  content.
-- **C-CSS-10** (README documents layer contract): Read the README, find
-  a Theming or Code-structure section, confirm it covers: the layer
-  names, the override contract, how to set `--base-*` and `--<prefix>-*`.
-- **C-CSS-11** (`main.css` has no rules): Read `main.css`. Every non-
-  blank line should start with `@`, `/`, or whitespace.
-- **C-CSS-12** (bundle size sanity): ⚠️ Manual — requires running the
-  build. List the command the human should run (`npm run build` then
-  `ls -lh dist/*.css`).
+- **`README.md` → `## Known limitations`** (consumer-facing).
+- **`$ARGUMENTS/VALIDATION-NOTES.md`** (internal-only). One section
+  per accepted deviation, headed with the check ID(s):
 
-## Step 4 — Produce the report
+  ```markdown
+  ## C-CSS-7 / C-NC-8 — Consumer-data discriminator classes
+  `.holiday`, `.event`, `.badge-{count,number,text}` are not
+  component-emitted classes — they're consumer-data values applied
+  via `dayClassMember` / `badgeClassMember`. Compound selectors
+  (`.drp__day.holiday`) ship default styling for common conventions.
+  Backing CSS variables (`--drp-holiday-color`, etc.) are a
+  documented public theming surface.
+  ```
+
+Discipline: an entry that explains *why the deviation is correct*
+downgrades the verdict. An entry that defers ("fix later", "low
+priority") stays a Fail. See `/validate-web-component` Step 2.5 for
+the full contract.
+
+If neither file exists, proceed at face value.
+
+## Step 3 — Run the auto checks via the script (fast path)
+
+The triad ships a runnable bash script that handles every `[auto]`
+check mechanically. Invoke it first:
+
+```bash
+bash C:/Git/BlissFramework/guidelines/web-components/css-structure.checks.sh "$ARGUMENTS" <css-prefix>
+```
+
+The CSS prefix can be omitted if `component-variables.manifest.json`
+declares it. The script runs C-CSS-1, 2, 3, 4, 5, 6, 7, 8, 11 — the
+nine `[auto]` checks — and prints PASS / FAIL / SKIP per check.
+Capture its output verbatim in your report.
+
+If the script fails to run, fall back to the `.checks.md` prose for
+each `[auto]` check.
+
+## Step 4 — Run the semi / manual checks (judgment path)
+
+For the three checks the script doesn't cover (per `css-structure.checks.md`
+tier tags):
+
+- **C-CSS-9** `[manual]` (no mixed-bag files): inspect each Tier-3 file
+  (or any feature file) and confirm its rules all relate to one
+  feature. This is a judgment call — flag any file whose name does not
+  describe its actual content.
+- **C-CSS-10** `[semi]` (README documents layer contract): Read the
+  README, find a Theming or Code-structure section, confirm it covers:
+  the layer names, the override contract, how to set `--base-*` and
+  `--<prefix>-*`, **and** warns about the unlayered-reset footgun.
+- **C-CSS-12** `[semi]` (bundle size sanity): ⚠️ Manual — requires
+  running the build. List the command the human should run
+  (`npm run build` then `ls -lh dist/*.css`). Don't run the build
+  yourself; just instruct.
+
+## Step 5 — Produce the report
 
 Output to the conversation:
 
@@ -101,15 +117,22 @@ Output to the conversation:
 **Strategy:** canonical / lean (per D-CSS-1)
 **Result:** N / 12 passing, M manual, K exceptions
 
-## Check results
+## Auto checks (via css-structure.checks.sh)
 
-### C-CSS-1 — canonical file set present
-**Status:** ✅ / ❌ / ⚠️ Manual / ⚠️ Exception / N/A
-**Evidence:** <commands run, files inspected>
-**Findings:**
-- <file:line> — <what was found>
+<paste script output verbatim>
 
-[repeat for all 12]
+## Semi / manual checks
+
+### C-CSS-9 — No mixed-bag files
+**Status:** ✅ / ❌ / ⚠️ Manual
+**Evidence:** <files inspected>
+**Findings:** <what was found>
+
+### C-CSS-10 — README documents layer contract
+...
+
+### C-CSS-12 — Bundle size sanity
+...
 
 ## Recommended actions (priority order)
 1. <concrete file:line edit to fix the highest-impact failure>

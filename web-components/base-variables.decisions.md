@@ -54,13 +54,21 @@ read variables you don't use — it's noise and confuses theme designers.
 **Common additions:**
 
 - [ ] `--base-text-color-2`, `--base-text-color-3` (secondary text)
+- [ ] `--base-text-color-4` (placeholder / lowest-contrast text — pick if the component has a 4-level text hierarchy)
+- [ ] `--base-accent-color-light-hover` (hover state for accent-light surfaces — paired with `--base-accent-color-light`)
 - [ ] `--base-elevated-bg` (if the component has a header / striped pattern)
 - [ ] `--base-hover-bg`, `--base-active-bg` (if the component has interactive elements)
 - [ ] `--base-input-*` (if the component has text inputs)
+- [ ] `--base-input-bg-disabled` (if inputs can be disabled / read-only)
+- [ ] `--base-input-size-{xs,sm,md,lg,xl}-height` (**required for any component with input controls** — pick the size tiers it supports; at minimum `md`. Hardcoded heights are a C-BV-13 fail.)
 - [ ] `--base-danger-color`, `--base-danger-bg-light` (if validation/errors)
-- [ ] `--base-dropdown-bg` (if the component has floating panels)
-- [ ] `--base-tooltip-bg`, `--base-tooltip-color` (if the component has tooltips)
+- [ ] `--base-dropdown-bg`, `--base-dropdown-border` (if the component has floating panels)
+- [ ] `--base-tooltip-bg`, `--base-tooltip-text-color` (if the component has tooltips — note: renamed from `--base-tooltip-color` 2026-06-11)
+- [ ] `--base-tooltip-padding-block`, `--base-tooltip-padding-inline`, `--base-tooltip-font-size`, `--base-tooltip-line-height`, `--base-tooltip-border-radius`, `--base-tooltip-max-width`, `--base-tooltip-box-shadow` (if the component has tooltips — canonical geometry, see C-BV-14)
 - [ ] `--base-font-*` (if the component renders text)
+- [ ] `--base-font-size-{lg,xl}` (if the component has size variants larger than `base`)
+- [ ] `--base-font-weight-medium` (if the component needs an intermediate weight between normal and semibold)
+- [ ] `--base-line-height-{tight,relaxed}` (if the component has multi-line content needing varied densities)
 - [ ] `--base-border-radius-*` (if the component has rounded corners)
 
 **Rule:** Every checkbox you tick must map to a `--<prefix>-*` definition on

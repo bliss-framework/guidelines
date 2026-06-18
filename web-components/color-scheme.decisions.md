@@ -100,6 +100,36 @@ text element.
 
 ---
 
+## D-CS-7 — Signal handling strategy: override variables, or flip `color-scheme`?
+
+**Question:** When a framework-class or per-instance signal fires
+(D-CS-2, D-CS-3), do the matched selectors override CSS variables,
+or do they flip `color-scheme` on the host?
+
+| Option | When to pick | Implication |
+|--------|--------------|-------------|
+| **A — Override variables** *(legacy default)* | Component has hardcoded single-mode literals in fallbacks (incremental migration); or dark-mode colors don't derive from `light-dark(<light>, <dark>)` (e.g., dark mode uses a different hue, not just a darker version). | Each signal selector sets `--my-bg: #...; --my-text: #...;` etc. Explicit. Larger `dark-mode.css`. Risks shadowing the consumer's `--base-*` overrides for the matched scope. |
+| **B — Flip `color-scheme`** *(recommended for new components)* | Every color in the component already chains through `light-dark()` (which the guideline requires anyway — C-CS-2). | Each signal selector sets `color-scheme: dark` (or `light`). One declaration per signal. `light-dark()` picks the dark branch automatically. Consumer's `--base-*` overrides keep flowing through untouched. |
+
+**Default:** B for new components. A for components migrating from a
+pre-`light-dark()` codebase that haven't yet finished moving every
+literal into a fallback chain.
+
+**Constraint shared by both:** The base `:host` block must NEVER
+declare a *bare* `color-scheme: ...` — that shadows page inheritance
+for every instance (C-CS-1). Strategy B only works because the
+declarations are conditional on signal selectors.
+
+**Reference:**
+- Strategy A — web-grid (legacy, ~300 lines of dark-mode CSS).
+- Strategy B — `@keenmate/web-multiselect` v1.12.0-rc01+ (`src/css/dark-mode.css`, ~60 lines).
+
+**Your pick:** A / B
+
+If A, justify briefly: ____________
+
+---
+
 ## D-CS-6 — Forced-colors / high-contrast support
 
 **Question:** Will the component respect Windows High Contrast mode and
@@ -128,6 +158,7 @@ D-CS-3 per-instance attribute    : [data-theme | data-color-scheme | none]
 D-CS-4 hover/active fallback     : [adaptive color-mix | flat literal]
 D-CS-5 contrast tests cover      : [signals 3, 4a, 4b, 4c, 5]
 D-CS-6 forced-colors             : [no special handling | @media block]
+D-CS-7 signal handling           : [A override --vars | B flip color-scheme]
 ```
 
 ---

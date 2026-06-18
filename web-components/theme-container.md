@@ -217,8 +217,21 @@ predictably and the default background actually paints a surface.
 The container is the offsetParent for any absolutely-positioned
 descendants (tooltips, popovers, dropdown chrome that floats inside
 the component). It also scopes `:focus-within` and `:has()` queries
-sanely. Always relative, unless the component is *intended* to escape
-its parent's stacking context.
+sanely. Always relative, unless either:
+
+- The component is *intended* to escape its parent's stacking context, OR
+- All floating UI panels (tooltips, popovers, dropdowns) use
+  `position: fixed` (typical for Floating-UI-based components), AND
+  any in-flow `position: absolute` descendants anchor to an
+  internal `position: relative` wrapper (`.ms__input-wrapper`,
+  `.wg__viewport`, etc.) — *not* to `:host` — so `:host` is never
+  asked to be the offsetParent for anything.
+
+In that second case, declaring `position: relative` on the container
+is harmless but unnecessary. Multiselect's pattern: `.ms__input-wrapper
+{ position: relative }` anchors the absolute `.ms__toggle` /
+`.ms__counter`; every floating panel uses `position: fixed`; `:host`
+has no positioned descendants needing it. C-TC-8 accepts both styles.
 
 ### `box-sizing: border-box`
 
@@ -242,28 +255,76 @@ they've often relied on the page background showing through `:host`.
 Don't. A component dropped into a transparent slot or popover should
 still render with a visible surface.
 
-If a component intentionally has a transparent surface (an inline
-control like a switch), document that exception in the component
-README's "Theming" section and skip C-TC-2 of the checks.
+There are three legitimate cases for what "default background" means
+on a component (D-TC-3):
 
-### `color-scheme` — DO NOT declare on the container
+1. **Self-painted host** *(default)*. The container declares
+   `background: var(--<prefix>-bg, …)`. Used by most composite
+   components — grids, players, calendars, tree views.
 
-This is the same rule as `:host { color-scheme }` from
-[color-scheme.md](./color-scheme.md), applied to Svelte containers
-too. Declaring `color-scheme` on the container blocks inheritance from
-the page; the component renders light on a dark page even when
-`body { color-scheme: dark }` is set.
+2. **Intentionally transparent** — inline-style controls like a
+   switch, a badge, a standalone icon button. The host lets the
+   parent's background show through. Document the opt-out in the
+   component README's "Theming" section.
+
+3. **Wrapper-host with painted chrome** — form-control components
+   where the visible surface is *one* internal element (typically
+   the `<input>`-like chrome), not the host itself. The host is a
+   layout wrapper; the chrome paints. The component is *not*
+   invisible standalone — the chrome paints itself — but the host
+   does not double-paint. Example: `@keenmate/web-multiselect` has
+   no `:host { background }`; `.ms__input` paints
+   `background: var(--ms-input-bg)` instead. Document in the README
+   that this is a form-control component and the host is a
+   transparent wrapper around the visible chrome.
+
+For (1) the C-TC-2 check expects `:host { background: ... }`. For (2)
+and (3) the check is satisfied by the documentation, not by a
+declaration on the host.
+
+### `color-scheme` — bare on `:host` is forbidden; conditional is fine
+
+The rule the team learned the hard way (multiselect v1.10 → v1.11
+fix): a **bare** `:host { color-scheme: ... }` (or
+`.<prefix>-container { color-scheme: ... }`) shadows the page's
+inherited `color-scheme` for *every* instance, breaking dark mode on
+pages that set `body { color-scheme: dark }`. That bare declaration
+is the #1 footgun and is forbidden.
 
 ```css
-/* WRONG — for either component type */
+/* WRONG — bare, unconditional */
 :host                 { color-scheme: light dark; }
 .ltree-container      { color-scheme: light dark; }
+```
 
-/* RIGHT — let the page declare color-scheme; use light-dark() in fallbacks */
+However, a **conditional** declaration on `:host(...)` /
+`:host-context(...)` / `.<prefix>-container[...]` / ancestor-class
+selectors fires *only* when the consumer has explicitly signalled
+dark or light. It amplifies the consumer's intent rather than
+fighting their page inheritance. This is a legitimate, often
+*cleaner* dark-mode strategy — see
+[color-scheme.md](./color-scheme.md) → "Strategy A vs Strategy B."
+
+```css
+/* RIGHT — conditional, fires only when consumer signalled dark */
+:host([data-theme="dark"]),
+:host-context([data-bs-theme="dark"]),
+:host-context(.dark) {
+  color-scheme: dark;   /* amplifies the consumer's signal */
+}
+```
+
+For the default `:host` block — the one that fires for *every*
+instance regardless of theme — let `color-scheme` inherit. Use
+`light-dark()` in CSS variable fallbacks instead:
+
+```css
 :host {
   --ms-bg: var(--base-main-bg, light-dark(#ffffff, #1a1a1a));
 }
 ```
+
+C-TC-4 enforces the bare-vs-conditional distinction.
 
 ---
 
@@ -439,6 +500,79 @@ else reads `--<prefix>-*`. Two layers, never three.
 
 ---
 
+## FOUC prevention — handling the pre-upgrade window (web-components only)
+
+> Svelte components render light DOM directly; there's no upgrade
+> phase and this section doesn't apply.
+
+Between the moment the browser parses `<web-multiselect>` and the
+moment JS calls `customElements.define(...)`, the element is an
+*unknown element* — `:not(:defined)` matches it, the browser gives it
+`display: inline` by default, and any child text (placeholder
+attributes, declarative `<option>` children) renders unstyled. On
+fast connections it's invisible but causes a layout shift when the
+component upgrades and reserves its real footprint; on slow
+connections users see the flash.
+
+The canonical fix is a light-DOM rule in `base.css` (Tier-1
+skeleton):
+
+```css
+/* base.css */
+web-multiselect:not(:defined) {
+  display: block;                              /* unknown defaults to inline */
+  min-height: calc(3.5 * var(--ms-rem));      /* reserve post-upgrade height */
+  color: transparent !important;               /* hide placeholder / child text */
+  background: transparent;                     /* let page background show */
+}
+```
+
+`min-height` matches the component's default rendered height so the
+page doesn't reflow when it upgrades. `color: transparent !important`
+hides any text content that might flash (`!important` because consumer
+selectors may have higher specificity). The rule stops applying the
+moment `customElements.define(...)` runs and the element becomes
+defined.
+
+### How a light-DOM rule reaches the host
+
+`:host` only applies *inside* the shadow root, which doesn't exist
+until upgrade — so it can't help here. The FOUC rule must target the
+custom element by tag, in the light DOM. It reaches the host because
+the component's entry point side-effect-imports `main.css`:
+
+```ts
+// src/index.ts
+import './css/main.css';   // bundler injects <style> into the consumer document
+```
+
+If your component skips that import (loading CSS only via the shadow
+root's inline injection), the FOUC rule has nowhere to land — add
+the side-effect import alongside the `?inline` one.
+
+### The tag-name trap
+
+The tag in the CSS selector MUST equal the string passed to
+`customElements.define(...)`. They live in separate files, nothing
+links them, and renames break the link silently — the old selector
+stops matching, FOUC reappears, the build is silent. Two real
+failure modes:
+
+- **Tag rename without CSS update.** `@keenmate/web-multiselect`
+  carried `multi-select:not(:defined)` in `base.css` after renaming
+  the registered tag to `web-multiselect` — dead rule, FOUC
+  prevention silently broken from the rename onward.
+- **CSS prefix mistaken for tag.** Don't write `ms:not(:defined)`;
+  `ms` is the variable prefix, not the tag. Write the full registered
+  tag name.
+
+C-TC-15 catches both by comparing the tag in `base.css` to every
+`customElements.define(...)` call in the TS source. D-TC-9 covers
+*when* the rule should be present at all (default yes for visible-chrome
+components, optional for inline atoms with no layout footprint).
+
+---
+
 ## Anti-patterns
 
 1. **Variables on `:root` / `html` / `body`.** Subtree theming breaks
@@ -453,14 +587,20 @@ else reads `--<prefix>-*`. Two layers, never three.
    `.ltree-container, .ltree-wrapper { --ltree-bg: ... }` you've drifted
    — pick one element and consolidate.
 
-4. **`color-scheme` on the container.** Blocks page inheritance.
+4. **Bare `color-scheme` on the container.** Blocks page inheritance.
    Equally wrong for `:host { color-scheme }` and
-   `.ltree-container { color-scheme }`.
+   `.ltree-container { color-scheme }`. Conditional
+   `:host([data-theme="dark"]) { color-scheme: dark }` is fine — it
+   only fires when the consumer has signalled their intent.
 
-5. **No default background on the container.** Component is invisible
-   when dropped on a page that doesn't pre-paint a surface. Set
-   `background: var(--<prefix>-bg)` unless the component is intentionally
-   transparent (e.g. switch / inline button).
+5. **No default background AND no painted chrome AND no documented
+   transparency.** Component is invisible when dropped on a page
+   that doesn't pre-paint a surface. Fix: either set
+   `background: var(--<prefix>-bg)` on the container, OR ensure
+   the component's primary visible element paints its own background
+   (the form-control "wrapper host" pattern — see "Default background"
+   above), OR document the intentional transparency in the README's
+   Theming section.
 
 6. **Container without `display: block`.** Custom elements collapse to
    inline by default; Svelte `<div>` is block but if you `display: contents`
@@ -488,9 +628,17 @@ else reads `--<prefix>-*`. Two layers, never three.
 
 ## Reference implementations
 
-- `@keenmate/web-multiselect` — clean `:host` pattern, four-signal
-  dark mode, per-instance `data-theme`. Inspect `src/css/variables.css`
-  + `src/css/dark-mode.css`.
+- `@keenmate/web-multiselect` (v1.12.0-rc01+) — **wrapper-host**
+  pattern (host is a layout wrapper; `.ms__input` paints), no
+  `position: relative` on `:host` (all floating panels are
+  `position: fixed` via Floating UI; in-flow `.ms__toggle` /
+  `.ms__counter` anchor to `.ms__input-wrapper`), and
+  **color-scheme-flipping** dark-mode strategy (conditional
+  `color-scheme: dark` on `:host([data-theme="dark"])` /
+  `:host-context(...)` instead of overriding `--ms-*` variables —
+  preserves consumer `--base-*` overrides). The reference
+  implementation for form-control components. Inspect
+  `src/css/variables.css` + `src/css/dark-mode.css`.
 - `@keenmate/web-grid` — same pattern, larger variable surface area.
 - `@keenmate/web-daterangepicker` — `:host, :root` dual declaration
   for the popover portal. The non-default case; read the README for

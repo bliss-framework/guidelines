@@ -720,8 +720,8 @@ To force light mode on a dark page, use the symmetric `light` versions:
 Before declaring the component CSS / theming work done, walk through:
 
 - [css-structure.checks.md](./css-structure.checks.md) — all 12 checks
-- [color-scheme.checks.md](./color-scheme.checks.md) — all 9 checks
-- [base-variables.checks.md](./base-variables.checks.md) — all 12 checks
+- [color-scheme.checks.md](./color-scheme.checks.md) — all 10 checks
+- [base-variables.checks.md](./base-variables.checks.md) — all 14 checks
 
 Paste the three filled-out summary checklists into the PR description.
 

@@ -162,9 +162,11 @@ every consumer component is expected to honor them).
 | `--base-accent-color-hover` | Hover state for accent elements. | `#106ebe` |
 | `--base-accent-color-active` | Pressed state for accent elements. | `#005a9e` |
 | `--base-accent-color-light` | Light tint of accent for selected-row backgrounds, range highlights. | `color-mix(in srgb, var(--base-accent-color) 15%, transparent)` |
+| `--base-accent-color-light-hover` | Hover state for `--base-accent-color-light` surfaces (badge hover, selected-row hover). | `color-mix(in srgb, var(--base-accent-color) 22%, transparent)` |
 | `--base-text-color-1` | Primary body text. | `light-dark(#242424, #f5f5f5)` |
 | `--base-text-color-2` | Secondary text — row numbers, secondary labels. | `light-dark(#424242, #d4d4d4)` |
-| `--base-text-color-3` | Muted text — placeholders, disabled, empty states. | `light-dark(#707070, #a3a3a3)` |
+| `--base-text-color-3` | Muted text — tertiary labels, group headings, disabled, empty states. | `light-dark(#707070, #a3a3a3)` |
+| `--base-text-color-4` | Quaternary text — placeholders, hints, the lowest-contrast readable text. Used when a component has a 4-level text hierarchy (e.g. multiselect: primary / secondary / muted / placeholder). Components with a 3-level hierarchy may skip this. | `light-dark(#a0a3a9, #737373)` |
 | `--base-text-color-on-accent` | Text laid over `--base-accent-color`. | `#ffffff` |
 | `--base-text-inverted` | Text on inverse-colored surfaces. | `#ffffff` |
 | `--base-main-bg` | Primary surface — card backgrounds, cell backgrounds, input fields. | `light-dark(#ffffff, #1a1a1a)` |
@@ -186,6 +188,7 @@ every consumer component is expected to honor them).
 | `--base-input-border-hover` | Input border on hover. | `1px solid var(--base-accent-color)` |
 | `--base-input-border-focus` | Input border when focused. | `1px solid var(--base-accent-color)` |
 | `--base-input-placeholder-color` | Placeholder text inside inputs. | `light-dark(#707070, #a3a3a3)` |
+| `--base-input-bg-disabled` | Background when the input is disabled / read-only. Chains through `--base-disabled-bg`. | `rgba(107, 114, 128, 0.05)` |
 
 ### Colors — semantic
 
@@ -194,7 +197,8 @@ every consumer component is expected to honor them).
 | `--base-danger-color` | Validation errors, destructive actions. | `light-dark(#d13438, #f87c86)` |
 | `--base-danger-bg-light` | Light tint behind invalid fields. | `light-dark(#fde7e9, #442726)` |
 | `--base-tooltip-bg` | Tooltip background. Chains through `--base-inverse-bg`. | (chained) |
-| `--base-tooltip-color` | Tooltip text color. | `light-dark(#ffffff, #1a1a1a)` |
+| `--base-tooltip-text-color` | Tooltip text color. Renamed from `--base-tooltip-color` (2026-06-11) for consistency with `--base-text-color-on-accent` and the `*-text-color` naming pattern elsewhere. Components migrating from the old name SHOULD keep reading the legacy name as a deprecated alias for one release. | `light-dark(#ffffff, #1a1a1a)` |
+| `--base-dropdown-border` | Dropdown / popover border (full shorthand). | `1px solid var(--base-border-color)` |
 | `--base-dropdown-box-shadow` | Drop shadow for floating panels. | `0 2px 8px rgba(0, 0, 0, 0.15)` |
 
 ### Typography
@@ -202,13 +206,18 @@ every consumer component is expected to honor them).
 | Variable | Purpose | Typical fallback |
 |----------|---------|------------------|
 | `--base-font-family` | Font for all component text. | `inherit` |
-| `--base-font-size-base` | Standard body text. | `1.6` (multiplied by rem) |
+| `--base-font-size-xl` | Largest text — XL-size input variants, prominent counters. | `1.8` (multiplied by rem) |
+| `--base-font-size-lg` | Large text — LG-size input variants, popover headers. | `1.8` |
+| `--base-font-size-base` | Standard body text. | `1.6` |
 | `--base-font-size-sm` | Smaller text — cells, controls. | `1.4` |
 | `--base-font-size-xs` | Smallest text — filters, labels. | `1.2` |
 | `--base-font-size-2xs` | Captions, error messages. | `1.1` |
 | `--base-font-weight-normal` | Normal weight. | `400` |
+| `--base-font-weight-medium` | Medium weight — used by components that need an intermediate step between normal and semibold. | `500` |
 | `--base-font-weight-semibold` | Header / emphasis weight. | `600` |
+| `--base-line-height-tight` | Tight line-height — multi-line option subtitles, dense rows. | `1.25` |
 | `--base-line-height-normal` | Default line-height multiplier. | `1.5` |
+| `--base-line-height-relaxed` | Relaxed line-height — long-form hint text, tooltips. | `1.75` |
 
 Font sizes are unitless multipliers, intended to be applied via
 `calc(var(--base-font-size-sm) * var(--<prefix>-rem))`. The component's `--<prefix>-rem` sets the base unit (default `10px`, set to `1rem` for Pure Admin integration).
@@ -220,8 +229,48 @@ Font sizes are unitless multipliers, intended to be applied via
 | `--base-border-radius-sm` | Tight corners — buttons, inputs. | `0.4` (multiplied by rem) |
 | `--base-border-radius-md` | Standard corners — cards, dialogs. | `0.6` |
 | `--base-border-radius-lg` | Large corners — overlays. | `0.8` |
+| `--base-input-size-xs-height` | XS input variant height — compact filter rows. | `3.1` (multiplied by rem ≈ 31px) |
+| `--base-input-size-sm-height` | SM input variant height — table inline editors. | `3.3` (≈ 33px) |
+| `--base-input-size-md-height` | MD input variant height — default form input. | `3.5` (≈ 35px) |
+| `--base-input-size-lg-height` | LG input variant height — emphasized inputs. | `3.8` (≈ 38px) |
+| `--base-input-size-xl-height` | XL input variant height — landing-page CTAs. | `4.1` (≈ 41px) |
 
-Same multiplier convention as font sizes.
+Same multiplier convention as font sizes. The five-tier input-height scale
+is the canonical sizing axis for form-control components — KeenMate's Theme
+Designer publishes one set of heights and every consuming component
+(multiselect, daterangepicker, future combobox, …) reads through the same
+variables for cross-component visual consistency. **Components with input
+controls MUST consume this scale instead of hardcoding heights** — see
+check C-BV-13.
+
+### Layout — tooltips
+
+Tooltip *colors* live with the other semantic colors above
+(`--base-tooltip-bg`, `--base-tooltip-text-color`). Tooltip *geometry*
+(padding, font-size, radius, max-width, shadow) is canonicalized here
+so every component's tooltip looks like every other component's
+tooltip — same density, same shadow, same corner radius — without
+each component reinventing the values. Defaults are the "compact
+middle-ground" picked 2026-06-16 after auditing web-multiselect (loose)
+and web-daterangepicker (dense) and finding a shared baseline neither
+component would have to fight too hard.
+
+| Variable | Purpose | Typical fallback |
+|----------|---------|------------------|
+| `--base-tooltip-padding-block` | Vertical padding inside the tooltip surface. | `0.6` (multiplied by rem ≈ 6px) |
+| `--base-tooltip-padding-inline` | Horizontal padding inside the tooltip surface. | `1.0` (≈ 10px) |
+| `--base-tooltip-font-size` | Tooltip text font size. Chains through `--base-font-size-xs`. | `var(--base-font-size-xs, 1.2)` |
+| `--base-tooltip-line-height` | Tooltip text line-height. Chains through `--base-line-height-normal`. | `var(--base-line-height-normal, 1.5)` |
+| `--base-tooltip-border-radius` | Tooltip corner radius. Chains through `--base-border-radius-sm`. | `var(--base-border-radius-sm, 0.4)` |
+| `--base-tooltip-max-width` | Maximum tooltip width before wrapping. Multiplied by rem. | `28` (≈ 280px) |
+| `--base-tooltip-box-shadow` | Tooltip drop shadow. Full shorthand. | `0 2px 8px rgba(0, 0, 0, 0.15)` |
+
+Same multiplier convention as font sizes for the unitless values
+(`padding-*`, `max-width`). `box-shadow` is a full shorthand so
+consumers can override the elevation entirely (including to `none`).
+**Components that render their own tooltips MUST consume this set
+rather than hardcoding values or inventing a parallel `--<prefix>-tooltip-*`
+scale that doesn't chain through `--base-*`** — see check C-BV-14.
 
 ---
 

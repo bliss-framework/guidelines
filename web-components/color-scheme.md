@@ -15,9 +15,12 @@ component's container — `:host` for web-components,
 
 ## TL;DR
 
-> **Use `light-dark()` in CSS variable fallbacks AND keep `:host-context()`
-> selectors for framework classes AND `:host([data-theme])` for per-instance
-> overrides. Never put `color-scheme` on `:host`.**
+> **Use `light-dark()` in CSS variable fallbacks AND honor framework
+> class signals on ancestors AND per-instance attributes on the host.
+> *Never* declare a bare `:host { color-scheme: ... }` — but a
+> conditional `:host([data-theme="dark"]) { color-scheme: dark }` is
+> not just allowed, it's often the cleanest dark-mode implementation
+> (Strategy B below).**
 
 If you do nothing else, do that.
 
@@ -144,6 +147,117 @@ background luminance.
 
 ---
 
+## Two strategies for framework-class & per-instance signals
+
+The CSS pattern above shows variables being overridden inside each
+signal selector — `:host-context([data-theme="dark"]) { --my-bg:
+#1a1a1a; }`. That's **Strategy A**, and it's the conservative choice.
+There's also **Strategy B**, where the signal selectors flip
+`color-scheme` on the host instead of overriding individual variables.
+Both are sanctioned; pick per component (D-CS-7).
+
+### Strategy A — override variables in each signal selector
+
+```css
+:host {
+  --my-bg:   var(--base-main-bg,      light-dark(#ffffff, #1a1a1a));
+  --my-text: var(--base-text-color-1, light-dark(#242424, #f5f5f5));
+}
+
+:host-context([data-theme="dark"]),
+:host-context([data-bs-theme="dark"]),
+:host-context(.dark),
+:host([data-theme="dark"]) {
+  --my-bg:   #1a1a1a;
+  --my-text: #f5f5f5;
+}
+```
+
+The framework-class selectors set hardcoded dark values for each
+variable, overriding the consumer's `--base-*` for the scope of the
+signal.
+
+**Pros:** Explicit. Easy to reason about ("dark mode means *these
+exact colors*"). Works even if the consumer didn't wrap the page in
+`color-scheme: dark`.
+
+**Cons:** N variables × M signals = N×M overrides to keep in sync. A
+consumer who set `--base-main-bg: #163768` on `:root` (their themed
+dark) gets that value *replaced* by our `#1a1a1a` inside the signal
+scope — silently. Our hardcoded value wins over their themed value
+because we shadowed it.
+
+### Strategy B — flip `color-scheme` in each signal selector
+
+```css
+:host {
+  --my-bg:   var(--base-main-bg,      light-dark(#ffffff, #1a1a1a));
+  --my-text: var(--base-text-color-1, light-dark(#242424, #f5f5f5));
+}
+
+:host-context([data-theme="dark"]),
+:host-context([data-bs-theme="dark"]),
+:host-context(.dark),
+:host([data-theme="dark"]) {
+  color-scheme: dark;
+}
+
+:host-context([data-theme="light"]),
+:host-context([data-bs-theme="light"]),
+:host-context(.light),
+:host([data-theme="light"]) {
+  color-scheme: light;
+}
+```
+
+The signal selectors set `color-scheme: dark` on the host. The
+`light-dark()` inside the `--my-bg` fallback then resolves to the
+dark branch — at the same moment, in the same evaluation pass — but
+*only if* the consumer hasn't set `--base-main-bg` to something else.
+If they have, their themed value flows through untouched.
+
+**Pros:** One declaration per signal — `color-scheme: dark` — instead
+of N variable overrides. Consumer's `--base-*` remains the source of
+truth: their themed dark colors keep applying. Smaller `dark-mode.css`
+(multiselect's is ~60 lines for the same coverage that Strategy A
+would take ~300 lines to express).
+
+**Cons:** Requires every visible color in the component to chain
+through a `light-dark()` fallback (which the guideline already
+mandates — C-CS-2). If any variable hardcodes a single-mode literal,
+that variable won't flip with the signal.
+
+**Important constraint:** Strategy B only works because the
+declaration is **conditional** — it fires only when the consumer has
+explicitly signalled their intent. A *bare* `:host { color-scheme:
+light dark }` would unconditionally shadow the page's inherited
+`color-scheme` for every instance, which is the bug that multiselect
+v1.10 → v1.11 fixed. See "Anti-patterns we've actually seen" #1.
+
+### Which to pick
+
+Default: **Strategy B**, *if* the component already follows the
+fallback-chain discipline (`light-dark()` in every color fallback,
+no hardcoded single-mode literals in feature files). The wins in
+maintainability and consumer-theming respect are real.
+
+Use **Strategy A** if:
+
+- The component has hardcoded single-mode literals it can't easily
+  remove (legacy code being incrementally migrated).
+- The component needs dark-mode values that *don't* derive from
+  `light-dark(<light>, <dark>)` — e.g., a dark-mode tint that uses a
+  completely different hue rather than a darker version of the same
+  hue.
+- The team's mental model favors "dark mode = these literal colors"
+  over "dark mode = flip the switch and trust the chain."
+
+Reference implementations: **Strategy A** — web-grid (legacy);
+**Strategy B** — `@keenmate/web-multiselect` v1.12.0-rc01+
+(`src/css/dark-mode.css`, with a long explanatory comment block).
+
+---
+
 ## Rules of the road
 
 ### Always
@@ -188,12 +302,24 @@ background luminance.
 
 ### Never
 
-1. **Never declare `color-scheme` on `:host`.** It looks tempting (it makes
-   `light-dark()` inside the shadow root resolve), but it blocks the page's
-   `body { color-scheme: dark }` from inheriting into the shadow root. The
-   user ends up with a component that ignores the page's dark setting. This
-   is the #1 footgun in this whole topic — multiselect ate this bug, the fix
-   was removing the declaration.
+1. **Never declare a *bare* `color-scheme` on `:host`** — i.e., on
+   the unqualified `:host` selector that fires for every instance
+   regardless of theme signals. It looks tempting (it makes
+   `light-dark()` inside the shadow root resolve), but it shadows
+   the page's `body { color-scheme: dark }` from inheriting into the
+   shadow root. The user ends up with a component that ignores the
+   page's dark setting. This is the #1 footgun in this whole topic —
+   multiselect ate this bug in v1.10 (declared `:host { color-scheme:
+   light dark }`), the fix in v1.11 was removing the bare declaration.
+
+   **Conditional declarations are different and allowed.** A
+   `:host([data-theme="dark"]) { color-scheme: dark }` fires only
+   when the consumer has explicitly signalled their intent — it
+   amplifies their signal rather than fighting their page
+   inheritance. That's Strategy B above and is the recommended
+   pattern for components whose `--base-*` chains are all
+   `light-dark()`-fallback'd. C-CS-1 enforces the bare-vs-conditional
+   distinction.
 
 2. **Never detect dark mode in JavaScript.** `window.matchMedia('(prefers-
    color-scheme: dark)')` works but is brittle: doesn't react to runtime
@@ -281,10 +407,15 @@ defensible.
 
 These are real bugs that have shipped. Don't repeat them.
 
-1. **`:host { color-scheme: light dark }`** — caused multiselect to ignore the
-   consumer page's `body { color-scheme: dark }` because the shadow root's
-   own declaration shadowed the inherited one. Fix: remove the `:host`
-   declaration entirely.
+1. **Bare `:host { color-scheme: light dark }`** — caused multiselect
+   v1.10 to ignore the consumer page's `body { color-scheme: dark }`
+   because the shadow root's own *unconditional* declaration shadowed
+   the inherited one. Fix in v1.11: remove the bare declaration.
+   Multiselect v1.12 then re-introduced `color-scheme` declarations
+   *only on conditional selectors* (`:host([data-theme="dark"])`,
+   `:host-context(...)`, etc.) as part of Strategy B — those fire
+   only when the consumer has signalled and don't shadow page
+   inheritance for unmarked instances.
 
 2. **`@media (prefers-color-scheme: dark) { :host { --my-bg: #1a1a1a; } }` with
    no consumer override path** — caused web-grid to render dark when the OS
@@ -305,6 +436,41 @@ These are real bugs that have shipped. Don't repeat them.
    react when the user switched OS theme mid-session. Fix: drop the JS, use
    CSS.
 
+6. **Tooltip displays dark background + dark text in dark mode** —
+   `@keenmate/web-grid`. The tooltip CSS reads
+   `var(--wg-tooltip-bg)` / `var(--wg-tooltip-color)` and the
+   variables are defined on `:host` with `light-dark()` literals
+   as fallbacks. The dark-mode CSS uses Strategy B (conditional
+   `color-scheme: dark` on `:host([data-theme="dark"])`). Yet the
+   tooltip still rendered with the light-mode branch when the grid
+   was in dark mode. The cause is subtle and varies by component;
+   the three shapes it has taken across our codebase:
+   - **Hardcoded literal in the tooltip rule.** Someone adds
+     `color: #fff` or `background: #333` directly in the tooltip
+     selector, shadowing the variable chain entirely. The script's
+     auto sub-check catches this when tooltip CSS lives in a
+     dedicated file; a grep at the [semi] tier catches the
+     shared-file case (web-grid's tooltip rules live in
+     `floating.css` alongside dropdowns and popovers).
+   - **Variable chain anchored on a non-`light-dark()` literal.**
+     `--<prefix>-tooltip-color: var(--base-tooltip-color, #000)`.
+     The chain looks fine but the final fallback doesn't flip with
+     `color-scheme`.
+   - **Theme signal doesn't reach the tooltip element.** The
+     tooltip is appended to a part of the DOM that doesn't inherit
+     the host's `color-scheme` flip — usually because it's
+     portaled to `document.body` to escape the container's
+     `overflow` / stacking context. The portal element lives in
+     light DOM and reads the consumer's page-level `color-scheme`,
+     not the host's `[data-theme="dark"]` flip.
+
+   See C-CS-10 for the matching check. The check enumerates the
+   three tooltip kinds (in-shadow, portal-escaped, browser-native)
+   and forces verification of the theme-propagation mechanism for
+   each. Any component that portal-renders tooltips, popovers, or
+   dropdowns to `document.body` has the same exposure as the third
+   shape above.
+
 ---
 
 ## Reference implementations
@@ -313,8 +479,12 @@ These are real bugs that have shipped. Don't repeat them.
   `packages/web-grid/src/css/_variables.css` (light-dark in fallbacks) and
   `packages/web-grid/src/css/_dark-mode.css` (framework-class overrides).
   Tests: `e2e/dark-mode.spec.ts` with 18 WCAG contrast assertions.
-- **`@keenmate/web-multiselect`** — light-dark()-only after the v1.11.0
-  refactor. Reference for position (1).
+- **`@keenmate/web-multiselect`** — v1.11 was light-dark()-only.
+  v1.12.0-rc01 added the framework-class + per-instance signal layer
+  using **Strategy B** (conditional `color-scheme` flipping in
+  `src/css/dark-mode.css` — ~60 lines for all four signals plus
+  symmetric light selectors). The reference implementation for
+  Strategy B.
 - **`@keenmate/web-daterangepicker`** — being aligned with multiselect at the
   same time as this document was written.
 

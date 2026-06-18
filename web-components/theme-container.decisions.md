@@ -56,25 +56,38 @@ class.
 
 ## D-TC-3 — Default background
 
-**Question:** Does the container paint its own background?
+**Question:** Where does the visible surface come from?
 
 **Options:**
 
-- **A — Yes (default).** `background: var(--<prefix>-bg)` on the
-  container. `--<prefix>-bg` reads through `--base-main-bg` with a
-  `light-dark()` fallback. The component is visible standalone on any
-  page.
-- **B — No, transparent.** The component is intentionally inline /
-  layered (e.g. a switch, a badge, an inline button) and should let the
-  parent's background show through. Document in the component README's
+- **A — Self-painted host** *(default for composite components)*.
+  `background: var(--<prefix>-bg)` on the container.
+  `--<prefix>-bg` reads through `--base-main-bg` with a
+  `light-dark()` fallback. Used by grids, players, calendars, tree
+  views — components whose container *is* the visible surface.
+- **B — Intentionally transparent.** The component is inline-style
+  (a switch, a badge, an icon button) and lets the parent's
+  background show through. Document in the component README's
   "Theming" section.
+- **C — Wrapper-host with painted chrome** *(default for
+  form-control components)*. The container is a layout wrapper; the
+  visible surface is *one* internal element (typically
+  `.<prefix>__input` or `.<prefix>__viewport`), which paints
+  `background: var(--<prefix>-<element>-bg)`. The component is
+  *not* invisible standalone — the chrome paints itself — but the
+  host does not double-paint. Document in the component README's
+  "Theming" section: name the painted element and note that the
+  host is transparent. Example: `@keenmate/web-multiselect` —
+  `:host` has no background; `.ms__input` paints
+  `var(--ms-input-bg)`.
 
-**Default:** A. Almost every component should paint a surface. B is the
-exception, not the rule.
+**Default:** A for composite UI (grid, player, calendar, tree),
+C for form controls (multiselect, combobox, date picker, switch
+wrapped in a labeled row, …), B for genuinely inline atoms.
 
-**Your pick:** A / B
+**Your pick:** A / B / C
 
-If B, justify briefly: ____________
+If B or C, justify briefly: ____________
 
 ---
 
@@ -151,8 +164,23 @@ they're plain descendant selectors (`[data-theme="dark"] .ltree-container`).
 - `display: contents` is **forbidden** — the container disappears as a
   layout box and no longer hosts the background, focus-within, or
   offsetParent.
-- `position: static` is allowed only if the component has no
-  internally-positioned descendants (tooltips, popovers, dropdown chrome).
+- `position: static` (i.e. no `position` declaration on the container)
+  is acceptable in two cases:
+  1. The component has no internally-positioned descendants and won't
+     grow one, OR
+  2. The component uses the **fixed-floating-UI pattern** — every
+     floating panel uses `position: fixed` (typical for Floating-UI
+     consumers) AND every in-flow `position: absolute` descendant
+     anchors to an internal `position: relative` wrapper
+     (`.<prefix>__input-wrapper`, `.<prefix>__viewport`, …) rather
+     than to the container. The host is then never asked to be the
+     offsetParent for anything.
+
+  Example of (2): `@keenmate/web-multiselect` —
+  `.ms__input-wrapper { position: relative }` anchors the absolute
+  `.ms__toggle` / `.ms__counter`; the dropdown / hint / tooltip /
+  popover are all `position: fixed`; `:host` has no `position`
+  declaration.
 
 **Your settings:** ____________
 
@@ -207,6 +235,61 @@ If No, list which signals are dark-only and why: ____________
 
 ---
 
+## D-TC-9 — FOUC prevention (web-components only)
+
+**Question:** Does the component ship a light-DOM
+`<tag>:not(:defined)` rule in `base.css` to prevent
+flash-of-unstyled-content during the pre-upgrade window?
+
+**Background:** Between the moment the browser parses
+`<my-component>` and the moment JS calls
+`customElements.define(...)`, the element is *unknown* — it defaults
+to `display: inline`, has no height, and any text content
+(placeholder attributes, declarative children) renders unstyled. On
+fast connections this is invisible but still causes a layout shift
+when the component upgrades and takes its real footprint; on slow
+connections users see the flash. See
+[theme-container.md](./theme-container.md) → "FOUC prevention" for the
+full discussion.
+
+| Option | When to pick |
+|--------|--------------|
+| **A — Yes, ship FOUC prevention** *(default for visible-chrome components)* | Inputs, lists, dropdowns, calendars, players, anything that reserves meaningful layout space after upgrade (~16px or more in any axis). The pre-upgrade flash and the layout shift are both real. |
+| B — No FOUC prevention | Inline atoms with no pre-upgrade layout footprint — a switch with `display: inline-block`, a badge, an icon button. Document under "Known limitations" in the component README. |
+
+**Default: A** for any web-component that reserves > ~16px of
+vertical or horizontal space when fully rendered.
+
+**N/A for Svelte components** — they render light DOM directly,
+there's no upgrade phase.
+
+**If A:** the rule lives in `base.css` (Tier-1 skeleton) and the tag
+in the selector MUST match the string passed to
+`customElements.define(...)` (C-TC-15 enforces this). Minimum-viable
+rule:
+
+```css
+<registered-tag>:not(:defined) {
+  display: block;                   /* or inline-block for inline-ish atoms */
+  min-height: <reserved-height>;    /* match the default rendered height */
+  color: transparent !important;
+  background: transparent;
+}
+```
+
+For multi-tag components (one library registering several tags),
+declare one block per tag.
+
+**If B:** add a one-line note to the README's "Known limitations":
+"No FOUC prevention — component is inline-style with no pre-upgrade
+layout footprint."
+
+**Your pick:** A / B
+
+If B, justify briefly: ____________
+
+---
+
 ## Decision summary
 
 Paste into PR description / CHANGELOG entry:
@@ -215,10 +298,11 @@ Paste into PR description / CHANGELOG entry:
 Theme container decisions:
 - D-TC-1 component type:                  A / B / C : <name>
 - D-TC-2 container selector:              <selector>
-- D-TC-3 default background:              yes / no   : <reason if no>
+- D-TC-3 default background:              A self-paint / B transparent / C wrapper-host : <painted element if C>
 - D-TC-4 per-instance override:           A / B / C / D
 - D-TC-5 ancestor conventions honored:    data-theme / data-bs-theme / .dark
 - D-TC-6 layout defaults (block, rel, border-box):  yes / exception: <…>
 - D-TC-7 portaled UI:                     A / B / C  : <strategy if C>
 - D-TC-8 symmetric dark/light selectors:  yes / no   : <reason if no>
+- D-TC-9 FOUC prevention:                 A ship rule / B no — reason  (N/A for Svelte)
 ```
