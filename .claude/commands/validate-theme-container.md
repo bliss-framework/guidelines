@@ -56,10 +56,10 @@ Use Glob to discover the layout under `$ARGUMENTS`:
 
 Identify the component's **prefix** (from manifest / variables.css /
 README). The container class for a Svelte component is
-`.<prefix>-container`. If the actual class differs from the prefix
-convention (e.g. legacy `.ltree-container` vs prefix `ltree` — fine
-match — vs hypothetical `.my-tree` vs prefix `ltree` — mismatch), flag
-the mismatch.
+`.<prefix>__container` (BEM, e.g. `.stv__container` for svelte-treeview).
+If the actual class differs from the prefix convention (e.g. prefix
+`stv` with `.stv__container` is a fine match; prefix `stv` with
+`.my-tree` is a mismatch), flag the mismatch.
 
 ### Step 3.5 — Load accepted-deviation registers
 
@@ -184,8 +184,8 @@ Output to the conversation (no file writes) a markdown report:
 **Target:** `$ARGUMENTS`
 **Package:** <name from package.json>
 **Component type:** web-component / Svelte / hybrid
-**Prefix:** <wg / ms / drp / ltree / sw / ...>
-**Container selector:** :host / .<prefix>-container
+**Prefix:** <wg / ms / drp / wtv / stv / sw / ...>
+**Container selector:** :host / .<prefix>__container
 **Result:** N / 15 passing, M manual, K exceptions
 
 ## Auto checks (via theme-container.checks.sh)

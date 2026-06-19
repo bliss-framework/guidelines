@@ -164,7 +164,7 @@ Output to the conversation:
 **Target:** `$ARGUMENTS`
 **Package:** <name from package.json>
 **Component type:** web-component / Svelte
-**CSS prefix:** <ms / wg / ltree / ...>
+**CSS prefix:** <ms / wg / stv / wtv / ...>
 **Tag:** <web-multiselect / N/A for Svelte>
 **Result:** N / 12 passing, M judgment / exceptions
 

@@ -283,8 +283,8 @@ Output to the conversation:
 **Target:** `$ARGUMENTS`
 **Package:** <name from package.json>
 **Component type:** web-component / Svelte / hybrid
-**Prefix:** <wg / ms / drp / wp / ltree / sw / ...>
-**Container selector:** :host / .<prefix>-container
+**Prefix:** <wg / ms / drp / wp / wtv / stv / sw / ...>
+**Container selector:** :host / .<prefix>__container
 **Strategy:** canonical / lean
 **Date:** <today>
 
