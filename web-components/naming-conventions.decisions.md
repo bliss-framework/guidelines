@@ -41,8 +41,8 @@ emitted class and CSS variable?
 **Rules:**
 
 - Reserved registry lives in [base-variables.md](./base-variables.md).
-- Two–five lowercase letters typical (`ms`, `wg`, `drp`, `wp`,
-  `ltree`, `sw`).
+- Two–four lowercase letters (`ms`, `wg`, `drp`, `wp`, `wtv`, `stv`,
+  `sw`).
 - The prefix is **per package**. Pick once and use forever.
 
 **Same question as D-BV-1.** Answer it once and cite here.

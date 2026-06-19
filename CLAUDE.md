@@ -95,9 +95,9 @@ without checking with the team first.
    distinction.
 5. **One component → one short prefix.** Existing reservations:
    `wg` (web-grid), `ms` (web-multiselect), `drp` (web-daterangepicker),
-   `wp` (web-player), `ltree` (svelte-treeview), `sw` (svelte-switch).
-   New components reserve their prefix in `base-variables.md` before
-   coding.
+   `wp` (web-player), `wtv` (web-treeview), `stv` (svelte-treeview),
+   `sw` (svelte-switch). New components reserve their prefix in
+   `base-variables.md` before coding.
 6. **Two layers of CSS variables, never three.**
    - `--base-*` = cross-component theming hook (set by theme-designer or
      consumer at `:root` or on a subtree wrapper).

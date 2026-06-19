@@ -285,7 +285,8 @@ Every CSS class emitted by the component carries the component's
 
 Reserved prefixes (registry in `base-variables.md`):
 `ms` (multiselect), `wg` (web-grid), `drp` (date-range-picker),
-`wp` (web-player), `ltree` (svelte-treeview), `sw` (svelte-switch).
+`wp` (web-player), `wtv` (web-treeview), `stv` (svelte-treeview),
+`sw` (svelte-switch).
 
 `.<prefix>__element__sub-element` is **forbidden** — promote the
 sub-element to its own BEM block.
@@ -360,7 +361,7 @@ often in surrounding code.
   `beforeDropCallback` / `beforeCopyCallback` interceptors,
   `getDisplayValueCallback` + `displayValueMember` data extractors,
   `sortCallback` / `initializeIndexCallback` behavior providers,
-  `ltree` CSS prefix.
+  `stv` CSS prefix.
 
 See the public manifesto for the full per-file walkthrough:
 `BlissFramework/web/docs/coding-guidelines-javascript/naming-conventions.md`

@@ -104,8 +104,7 @@ throughout its `--<prefix>-*` variables, BEM class names, and the
 
 The prefix is **derived from the component name** by a fixed rule, so
 there's no bikeshedding. The team can override the derivation in rare
-cases (e.g. the existing `ltree` for `svelte-treeview`) — that's an
-exception, not the pattern.
+cases, but those overrides are exceptions, not the pattern.
 
 ### The algorithm
 
@@ -162,18 +161,22 @@ Current snapshot:
 | `@keenmate/web-multiselect` | `ms` |
 | `@keenmate/web-daterangepicker` | `drp` |
 | `@keenmate/web-player` | `wp` |
-| `@keenmate/svelte-treeview` | `ltree` *(legacy, predates the rule)* |
+| `@keenmate/web-treeview` | `wtv` |
+| `@keenmate/svelte-treeview` | `stv` |
 | `@keenmate/svelte-switch` | `sw` |
 
 When adding a new component, **update both this table and the
 authoritative one in `base-variables.md`** — they must stay in sync.
 
-### Legacy exceptions
+### Cross-tech collisions
 
-`ltree` for `svelte-treeview` predates the derivation rule and stays
-as-is — renaming would force a breaking change on every consumer's
-override CSS. New components do *not* get to choose arbitrary
-mnemonics; follow the algorithm or justify in the PR.
+`web-treeview` and `svelte-treeview` both derive to `tv` by the
+multi-word initials rule (tree + view). Each ports a different
+implementation of the same UI surface, so they need distinct
+prefixes for consumers that load both. Resolution: prepend the
+tech-prefix letter — `wtv` (web) and `stv` (svelte). Same pattern
+applies to any future component family shipping both `web-X` and
+`svelte-X` builds.
 
 ---
 

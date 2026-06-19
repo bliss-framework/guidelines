@@ -233,7 +233,8 @@ it's the contract working as designed — but it is the most common way
 consumers accidentally clobber a layered component library's defaults.
 We've hit it in practice (svelte-treeview showcase, 2026-06: a generic
 `* { padding: 0 }` reset in the demo page's shared stylesheet wiped out
-`.ltree-node-content` padding).
+`.stv__node-content` padding — was `.ltree-node-content` before the
+5.0.0 consolidation rename).
 
 **Recommend to consumers in the component README:** wrap universal
 resets in a named layer. Any layer name will do; the rule just needs to

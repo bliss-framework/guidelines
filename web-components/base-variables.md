@@ -335,6 +335,9 @@ Pick once, use everywhere. Existing prefixes:
 | `@keenmate/web-multiselect` | `ms` | `--ms-option-bg` |
 | `@keenmate/web-daterangepicker` | `drp` | `--drp-day-cell-bg` |
 | `@keenmate/web-player` | `wp` | `--wp-control-bg` |
+| `@keenmate/web-treeview` | `wtv` | `--wtv-node-bg` |
+| `@keenmate/svelte-treeview` | `stv` | `--stv-node-hover-bg` |
+| `@keenmate/svelte-switch` | `sw` | `--sw-track-bg` |
 
 **Rules:**
 
