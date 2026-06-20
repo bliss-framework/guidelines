@@ -79,7 +79,7 @@ Exactly these sections, in this order:
 | Title + 1-line tagline | What the component *is*, in one sentence | 2–3 lines |
 | What is it | 1–3 short paragraphs — value proposition, who it's for, what makes it different | < 30 lines |
 | Status badges (optional) | npm version, license, CI/build, bundle size | 1 line |
-| What's new | Latest version + 1-line summary + link to `CHANGELOG.md` | < 10 lines |
+| What's new | One or two `## What's New in vX.Y.Z` sections (most-recent two) in the canonical format. See [`## What's New in vX.Y.Z` — canonical format](#-whats-new-in-vxyz--canonical-format) below. | < 80 lines combined |
 | Demos & docs | Deployed-demo URL (if any) + bulleted links to each `docs/` file | < 15 lines |
 | Install | `npm install …` (and CDN if applicable) | < 10 lines |
 | Quick start | Minimum viable code snippet + 1-paragraph explanation | < 30 lines |
@@ -180,6 +180,149 @@ isn't a hard gate, but new components and rewrites use
   own link to `https://blissframework.dev/`. About answers *who
   built it and what it integrates with*; Built with BlissFramework
   answers *what rulebook it follows*.
+
+---
+
+## `## What's New in vX.Y.Z` — canonical format
+
+Every component README carries one or two `## What's New in vX.Y.Z`
+sections near the top — between the one-line tagline / "What is it"
+intro and the next major heading (typically `## Features`,
+`## Highlights`, or `## Demos & docs`). The shape of each section
+is identical across components so a reader who has skimmed one
+package's release highlights knows what to expect from the next.
+
+This is **the canonical structure**. The `/publish` slash-command
+in every component repo drafts new sections in this shape; check
+C-RS-16 enforces it on every release.
+
+### Heading
+
+```markdown
+## What's New in v1.3.3
+```
+
+Exact format: `## What's New in v<semver>`. The version is unquoted
+(no backticks), prefixed with a lowercase `v`, and matches the
+semver in `package.json` at release time. No date in the heading —
+dates belong in `CHANGELOG.md`.
+
+### Entry shape
+
+Each release section is a flat bulleted list. Every bullet uses
+this exact pattern:
+
+```markdown
+- **`<Component or area>` — <one-line headline of the change>** — <engineer-level prose>
+```
+
+Three parts, in order:
+
+1. **Lead phrase** — bold-wrapped, opens with the affected
+   component / surface (often in backticks: `` `TextField` ``,
+   `` `TopNav` ``, `` `Badge` `` — or a non-component area like
+   `Demo page`, `Z-index scale`) followed by a `—` and a short
+   headline of *what changed*. The whole lead phrase is one
+   `**…**` bold span.
+2. **Em-dash separator** — ` — ` (space, em-dash, space) between
+   the bold lead phrase and the prose body. Plain hyphens (`-`) or
+   en-dashes (`–`) don't satisfy the format; use a true em-dash.
+3. **Prose body** — one paragraph baked into the same bullet,
+   typically 3–8 sentences. Explains:
+   - *what* changed (the API or visual delta),
+   - *why* it was needed (history, regressions, user-facing
+     motivation — e.g. "Recurring regression last fixed ~5 months
+     ago, reintroduced during the structural rework"),
+   - *what surface* is affected (concrete component names listed
+     inline, not vaguely "several wrappers"),
+   - *the mechanism* (the technique used —
+     "conditional-spread pattern `{...(title ? { title } : {})}`",
+     "rendered through a `--topnav-toggle-size` CSS variable"),
+   - *edge-case variants* where relevant (e.g.
+     `value != null` for inputs so `value=""` still renders).
+
+No sub-bullets. No nested lists. One bullet per change, however
+long the prose runs. The whole entry is a single line of markdown
+broken across multiple physical lines only by editor wrap.
+
+### Tone and content
+
+Engineer-to-engineer. Names real symbols (`@attr`, `[readonly]`
+CSS attribute-presence selector, `menuToggleSize`, `--fluent-z-*`,
+`light-dark()`). Names affected components inline rather than
+saying "all form fields". Explains the *why* and the *mechanism*,
+not just the *what* — a release highlight a reader can act on, not
+a marketing line.
+
+Acceptable bullet types (you can mix them in one section):
+
+- **Feature** — a new prop / attribute / API. Lead phrase ends in
+  the new surface name; prose explains the gap it fills and any
+  edge cases.
+- **Behavior change** — visible default or interaction change.
+  Prose explains the old behavior, the new behavior, and the
+  rationale.
+- **Bug fix worth advertising** — only for fixes consumers will
+  notice or that were long-standing pain. Prose names the
+  regression history if applicable and the underlying mechanism.
+  Don't lift internal-only fixes into What's New; those stay in
+  the CHANGELOG.
+- **Demo / docs change** — new showcase page or worked example
+  paired with a feature/fix bullet. Lead phrase: `Demo page — …`
+  or `` `<route>` showcase — … ``.
+
+### Worked example
+
+From `svelte-fluentui` v1.3.3 (the reference implementation of
+this format):
+
+```markdown
+## What's New in v1.3.3
+
+- **Custom-element attribute bindings stop stringifying `undefined` / `null` / `false`** — Recurring regression (last fixed ~5 months ago, reintroduced during the structural rework) that affected 22 wrappers including `TextField`, `Textarea`, `Switch`, `Slider`, `Checkbox`, `Button`, `Anchor`, `Accordion(Item)`, `BreadcrumbItem`, `DataGrid(Row/Cell)`, `Dialog`, `Listbox`, `MenuButton`, `Option`, `TabPanel`, `Toolbar`, `NumberField`, `Combobox`, plus `Paginator` and `QuickGrid` sub-buttons. Svelte 5 sets properties on custom elements rather than attributes, and FAST's `@attr` decorators stringify whatever they receive — so unset props were rendering as `title="undefined"`, `readonly="false"`, `disabled="false"`, etc. The `readonly`/`disabled` cases were the worst symptom because `[readonly]` and `[disabled]` CSS attribute-presence selectors match regardless of value, leaving an enabled field with a not-allowed cursor. All affected wrappers converted to the conditional-spread pattern (`{...(title ? { title } : {})}`) which physically omits the attribute from the template when unset. Variants `{...(value != null ? { value } : {})}` for inputs (so `value=""` still renders) and `{...(attr !== undefined ? { attr } : {})}` for numeric props (so `0` survives) are used where falsy values are meaningful.
+
+- **`TextField` demo page — new Readonly and Disabled example sections** — The `/components/forms/text-field` showcase previously demonstrated only the basic input and `autocomplete` variants; the readonly and disabled states (the surface that exposed the bug above) had no live example. Added Readonly with outline + filled variants and Disabled with three variants (outline + placeholder, outline + value, filled + value).
+```
+
+### Mechanics
+
+- **Placement** — top of README, after the one-line tagline /
+  "What is it" intro, before `## Features` / `## Highlights` /
+  `## Demos & docs`. Newest version first; older sections stacked
+  below in descending semver.
+- **Retention** — **at most two** `## What's New in vX.Y.Z`
+  sections live in the README at any time. The third (oldest) is
+  deleted when a new release lands. Older history lives in
+  `CHANGELOG.md`. The `/publish` command enforces this trim in
+  its README-update step.
+- **Length per section** — 1–8 bullets. Sections with > 8 bullets
+  are over-stuffed; consolidate related changes into one bullet
+  or drop the marginal ones (they're already in CHANGELOG).
+- **No headers inside the section** — no `### Added` /
+  `### Fixed` sub-headings. Use the lead-phrase verb to signal
+  the change type ("Stop stringifying…" for a fix, "New `radius`
+  prop…" for an addition). The CHANGELOG carries the structured
+  Added/Changed/Fixed split; What's New is a curated highlight
+  reel.
+- **No emojis in the heading or lead phrases** — the format reads
+  as prose, not as a release-card UI. Backticks for symbol names
+  are the only inline decoration.
+
+### Relationship to the CHANGELOG
+
+The CHANGELOG section for a release is the **exhaustive** record
+— every Added / Changed / Fixed / Removed / Internal bullet. The
+What's New section is the **curated subset**: only entries a
+consumer would care about, paraphrased to read as engineer-to-
+engineer prose rather than reproduced verbatim. Pure internal
+refactors and `Fixed`-only entries that aren't worth advertising
+stay out of What's New entirely.
+
+Every Added / Changed bullet in the CHANGELOG that represents a
+user-facing change *should* have a corresponding What's New bullet
+(check C-RS-7 covers presence, C-RS-16 covers shape). The
+`/publish` command validates this coverage in its "Validate README
+reflects the release" step.
 
 ---
 

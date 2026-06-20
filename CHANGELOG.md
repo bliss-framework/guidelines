@@ -8,6 +8,134 @@ Categories used: **Added**, **Changed**, **Removed**, **Fixed**.
 
 ---
 
+## 2026-06-18
+
+### Added
+
+- **New canonical `## What's New in vX.Y.Z` format and check `C-RS-16` —
+  every component's README release-highlights section follows the same
+  shape across the suite.** Before this, each component's README
+  invented its own "What's new" section: `web-multiselect`,
+  `web-daterangepicker`, and `web-grid` used lowercase `## What's new`
+  with a one-line summary + CHANGELOG link; `svelte-treeview` used
+  `## What's New in vX.Y.Z` with bullets but used `:` as the lead-phrase
+  separator; only `svelte-fluentui` (`README.md` v1.3.3 / v1.3.2 at the
+  workspace root) had the polished engineer-to-engineer format the team
+  actually wanted to standardize on. The canonical format codifies that
+  voice: heading `## What's New in v<semver>` (lowercase `v`, no
+  backticks around the version, no date); each bullet `- **<area or
+  component> — <one-line headline>** — <engineer-level prose>`; the prose
+  body is 3–8 sentences explaining *what* changed, *why* (regression
+  history / motivation), *what surface* is affected (concrete component
+  / prop / file names listed inline, not vaguely "several wrappers"),
+  and *the mechanism* (the CSS / JS / DOM technique used); a true
+  em-dash (` — `, U+2014 with surrounding spaces) separates the bold
+  lead phrase from the prose; no `### Added` / `### Fixed` sub-headings
+  inside the section; at most two `## What's New in vX.Y.Z` sections in
+  the README at any time. The `/publish` slash-command in each
+  component repo drafts new sections in this shape and C-RS-16 enforces
+  it on every release.
+  - Tier: `[auto]`. The check verifies four things: (1) at least one
+    canonical-shape heading is present, (2) at most two sections live in
+    the README (older release notes belong in `CHANGELOG.md`),
+    (3) every bullet directly under a `What's New` heading starts with
+    `- **` and contains ` — ` (true em-dash + surrounding spaces) between
+    the bold lead phrase and the prose body, (4) no `### ` sub-headers
+    appear inside a section. Loose `## What's new` headings without a
+    semver version fail with a "non-canonical heading" diagnostic
+    pointing at the offending line. A `D-RS-5 = C` exception (no
+    What's-new section, CHANGELOG.md linked from Demos & docs instead)
+    skips the check.
+  - Files touched: `readme-structure.md` (new "## `## What's New in
+    vX.Y.Z` — canonical format" section after the canonical About-text
+    block; canonical-layout table's What's-new row now points at it),
+    `readme-structure.checks.md` (new C-RS-16 entry; summary checklist
+    extended), `readme-structure.checks.sh` (heading regex, section-count
+    cap, awk-based bullet scan with em-dash byte-match `\xe2\x80\x94`,
+    sub-header detection), `README.md` index (readme-structure row bumps
+    from 7/7/1 = 15 to 8/7/1 = 16).
+
+- **New `publish-command` triad — canonical `/publish` slash-command
+  structure unifying release flows across every component repo.**
+  Each component (`web-multiselect`, `web-grid`,
+  `web-daterangepicker`, `svelte-fluentui`, `svelte-treeview`,
+  `web-treeview`, `svelte-switch`, `web-switch`) ships a
+  `.claude/commands/publish.md` that an agent reads when the user
+  types `/publish rc` (or `release` / `patch` / `minor` / `major`).
+  Before this triad, every component's `/publish` had subtle drift:
+  some did an `npm view` registry pre-check ("is this version already
+  published?") and some didn't (`svelte-fluentui` notably — so a
+  re-publish over an already-published rcN ran the entire flow,
+  failed only at `npm publish`, and left a bogus `[PUBLISHED]`-tagged
+  commit on HEAD); the version-resolution decision table for rc /
+  release / patch / minor / major varied; the bullet-count target for
+  What's-new drafts ranged from 5–7 to 5–8; `svelte-treeview`
+  uniquely used the `## [Unreleased]` accumulator convention while
+  everyone else used `[PUBLISHED]`-tag-on-WIP. None of those
+  differences had a reason — they were artifacts of each command being
+  scaffolded separately. The canonical spec defines 14 sections in
+  order: Argument → Repo layout → CHANGELOG convention → Resolve
+  versions → Steps (1 Sanity checks → 2 Bump version → 3 Finalize
+  CHANGELOG → 4 Update README "What's New" → 5 Validate README →
+  6 Validate CHANGELOG → 7 Run tests → 8 Build → 9 Verify pack
+  contents → 10 Commit → 11 Report) → Things not to do. Sections tagged
+  `[canonical]` must appear byte-identical across every per-repo file
+  (modulo declared variable substitutions: `{{PKG_NAME}}`,
+  `{{PKG_JSON_PATH}}`, `{{NEXT_RC_EXAMPLE}}`, etc.); sections tagged
+  `[per-repo]` (Repo layout, Tests, Build, Verify pack) carry the
+  genuinely-structural differences (monorepo vs single-package paths,
+  `make package` vs `npm run build` vs `npm run package` with custom
+  pre/post hooks, Playwright vs vitest vs type-check-only).
+  - Tier: 11 checks, all `[auto]`. **C-PC-0** verifies the file
+    exists at `.claude/commands/publish.md`. **C-PC-1** verifies all
+    17 canonical section headings appear in the correct order with
+    the right `[canonical]` / `[per-repo]` tag. **C-PC-2** verifies
+    Step 1 contains both `npm view <pkg>@<version>` (the
+    "already published?" stop) and `npm view <pkg> version` (the
+    "registry drifted past you?" warn) — the single most important
+    pre-check, missing from `svelte-fluentui` before this triad
+    landed. **C-PC-3** md5-compares the version-resolution decision
+    table against the reference (web-multiselect by default; override
+    via `PUBLISH_REFERENCE` env var). **C-PC-4** md5-compares the
+    first ~10 bullets of the "Things not to do" block (per-repo extras
+    after a `### Repo-specific don'ts` sub-heading don't count).
+    **C-PC-5** verifies Step 1's draft-What's-New block references
+    `readme-structure.md → 'canonical format'` and names auto-check
+    `C-RS-16` — the bridge between the publish flow and the README
+    structure rule. **C-PC-6** verifies the canonical commit message
+    template (`vNEW_VERSION - <one-line summary>` subject + grouped
+    bullets body + `Co-Authored-By: Claude Opus 4.7 (1M context)`
+    trailer) appears in Step 10. **C-PC-7** verifies the file's
+    intro paragraph references `web-components/publish-command.md`
+    (anchors the per-repo file to the spec for future contributors).
+    **C-PC-8** verifies every heading carries the correct
+    `[canonical]` / `[per-repo]` tag from a 15-entry expected-tags
+    table. **C-PC-9** verifies Step 1's draft block uses the canonical
+    "5–8 scannable bullets" target (catches the historical 5–7 drift).
+    **C-PC-10** verifies Step 10's stage list mentions `CHANGELOG.md`,
+    `README.md`, and `package.json` at minimum.
+  - Files added: `publish-command.md` (canonical spec — 14 sections of
+    required text plus the variable-contract table), `publish-command.checks.md`
+    (C-PC-0 through C-PC-10 with verification commands, pass / fail /
+    failure-mode prose, and the summary checklist), `publish-command.checks.sh`
+    (executable `[auto]` runner — takes a component repo path, locates its
+    publish.md, runs all 11 checks; md5 comparisons use a configurable
+    reference file). `README.md` index gains a new triad row
+    (11 auto / 0 semi / 0 manual = 11) and a "When to consult" entry;
+    totals 55 auto / 31 semi / 15 manual = 101 checks (was 90).
+  - Verification: ran `publish-command.checks.sh` against all 8
+    components — each scores 11/11 PASS after the per-repo
+    `.claude/commands/publish.md` files were rewritten against the spec
+    (those file rewrites live in the component repos, not here). md5 of
+    the canonical "Things not to do" block
+    (`730308ed1be73a99d5944fb085323630`), the version-resolution
+    decision table (`df919fa505f2a5c9b2946e5c85a54dbc`), and Step 5
+    "Validate README reflects the release"
+    (`6b98d4e0df7c6c00d6515a5298ccf757`) is identical across every
+    component.
+
+---
+
 ## 2026-06-16
 
 ### Added

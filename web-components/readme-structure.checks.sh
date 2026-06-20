@@ -209,6 +209,134 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# C-RS-16 — ## What's New in vX.Y.Z sections follow the canonical format
+# -----------------------------------------------------------------------------
+#
+# Verifies four things:
+#   1. At least one canonical heading is present:
+#        ## What's New in v<semver>     (lowercase v, no backticks, no date)
+#   2. At most two canonical headings exist (older releases live in CHANGELOG).
+#   3. Every bullet directly under a What's New heading (until the next ##)
+#      starts with "- **" and contains " — " (true em-dash + surrounding
+#      spaces) between the bold lead phrase and the prose body.
+#   4. No "### " sub-headers appear inside a What's New section.
+
+WN_HEADING_RE='^## What'\''s New in v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$'
+WN_ANY_HEADING_RE='^## What'\''s New in v'
+# Loose match: any "## What's new..." heading, case-insensitive, with or
+# without version. Used to distinguish "section is missing entirely" (the
+# D-RS-5 = C exception) from "section exists but uses the wrong shape".
+WN_LOOSE_HEADING_RE='^##\s+what'\''?s\s+new'
+
+WN_HEADING_COUNT=$(grep -cE "$WN_HEADING_RE" "$README")
+WN_ANY_HEADING_COUNT=$(grep -cE "$WN_ANY_HEADING_RE" "$README")
+WN_LOOSE_HEADING_COUNT=$(grep -ciE "$WN_LOOSE_HEADING_RE" "$README")
+
+# Detect a D-RS-5 = C exception: the README intentionally has NO What's New
+# section of any kind, and links CHANGELOG.md from the Demos & docs block.
+WN_HAS_CHANGELOG_LINK=0
+grep -qE "\(\.?/?CHANGELOG\.md\)" "$README" && WN_HAS_CHANGELOG_LINK=1
+
+if [[ "$WN_LOOSE_HEADING_COUNT" -eq 0 ]]; then
+  # No What's New section of any kind. Either D-RS-5 = C (legitimate) or
+  # the section is just missing (failure).
+  if [[ "$WN_HAS_CHANGELOG_LINK" -eq 1 ]]; then
+    record_skip "C-RS-16" "no 'What's new' section of any kind — N/A if D-RS-5 = C; CHANGELOG.md is linked"
+  else
+    record_fail "C-RS-16" "no 'What's New' section and no CHANGELOG.md link — add section per readme-structure.md → 'canonical format'"
+  fi
+elif [[ "$WN_ANY_HEADING_COUNT" -eq 0 ]]; then
+  # Loose What's New heading exists but doesn't match "## What's New in v…" —
+  # wrong shape, not an exemption. Point at the offender.
+  OFFENDER=$(grep -niE "$WN_LOOSE_HEADING_RE" "$README" | head -1)
+  record_fail "C-RS-16" "'What's new' heading is non-canonical — got: '${OFFENDER}'; want: '## What's New in v<semver>' per readme-structure.md → 'canonical format'"
+else
+  WN_PROBLEMS=()
+
+  # 1) At least one heading must match the canonical shape
+  if [[ "$WN_HEADING_COUNT" -eq 0 ]]; then
+    # We have "## What's New in v..." lines but none in canonical shape — point
+    # at one offender so the user can see what to fix.
+    OFFENDER=$(grep -nE "$WN_ANY_HEADING_RE" "$README" | head -1)
+    WN_PROBLEMS+=("non-canonical heading shape — got: '${OFFENDER}'; want: '## What's New in v<semver>' (no backticks, no date)")
+  fi
+
+  # 2) At most two canonical headings
+  if [[ "$WN_HEADING_COUNT" -gt 2 ]]; then
+    WN_PROBLEMS+=("$WN_HEADING_COUNT 'What's New' sections present — keep only the two most recent (older releases live in CHANGELOG.md)")
+  fi
+
+  # 3 & 4) Per-section bullet + sub-header scan
+  # awk emits one line per offence: <kind>\t<line-number>\t<offending-text>
+  # kinds: BAD_BULLET, SUBHEADER
+  BULLET_OFFENCES=$(awk '
+    BEGIN { in_section = 0 }
+    {
+      line = $0
+      lineno = NR
+
+      # Enter a What'\''s New section
+      if (line ~ /^## What'\''s New in v/) {
+        in_section = 1
+        next
+      }
+
+      # Leave the section on any other H2
+      if (in_section && line ~ /^## /) {
+        in_section = 0
+      }
+
+      if (in_section) {
+        # 4) ### sub-headers inside the section are not allowed
+        if (line ~ /^### /) {
+          print "SUBHEADER\t" lineno "\t" line
+          next
+        }
+
+        # 3) Bullets must be "- **...** — ..." with a real em-dash
+        if (line ~ /^[-*] /) {
+          if (line !~ /^[-*] \*\*/) {
+            print "BAD_BULLET\t" lineno "\t" substr(line, 1, 80)
+            next
+          }
+          # Look for " — " (space, U+2014, space). awk handles UTF-8 bytes
+          # transparently here; the em-dash is the literal 3-byte sequence.
+          if (line !~ / \xe2\x80\x94 /) {
+            print "BAD_BULLET\t" lineno "\t" substr(line, 1, 80)
+            next
+          }
+        }
+      }
+    }
+  ' "$README")
+
+  if [[ -n "$BULLET_OFFENCES" ]]; then
+    BAD_BULLETS=$(echo "$BULLET_OFFENCES" | grep -c '^BAD_BULLET' || true)
+    SUBHEADERS=$(echo "$BULLET_OFFENCES" | grep -c '^SUBHEADER' || true)
+
+    if [[ "$BAD_BULLETS" -gt 0 ]]; then
+      FIRST_BAD=$(echo "$BULLET_OFFENCES" | grep '^BAD_BULLET' | head -1 | cut -f2,3 | tr '\t' ':')
+      WN_PROBLEMS+=("$BAD_BULLETS bullet(s) miss the '- **…** — …' pattern (need bold lead phrase + true em-dash + prose). First: line $FIRST_BAD")
+    fi
+    if [[ "$SUBHEADERS" -gt 0 ]]; then
+      FIRST_SUB=$(echo "$BULLET_OFFENCES" | grep '^SUBHEADER' | head -1 | cut -f2,3 | tr '\t' ':')
+      WN_PROBLEMS+=("$SUBHEADERS '### ' sub-header(s) inside 'What's New' section — drop them; What's New is a flat bullet list. First: line $FIRST_SUB")
+    fi
+  fi
+
+  if [[ "${#WN_PROBLEMS[@]}" -eq 0 ]]; then
+    record_pass "C-RS-16 '## What's New in vX.Y.Z' section(s) follow canonical format ($WN_HEADING_COUNT section(s))"
+  else
+    # Join problems with a separator that survives the colour codes
+    JOINED=""
+    for p in "${WN_PROBLEMS[@]}"; do
+      if [[ -z "$JOINED" ]]; then JOINED="$p"; else JOINED="$JOINED; $p"; fi
+    done
+    record_fail "C-RS-16" "$JOINED"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
 # Summary
 # -----------------------------------------------------------------------------
 

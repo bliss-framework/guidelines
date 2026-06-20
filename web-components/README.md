@@ -48,9 +48,9 @@ Each check inside a `.checks.md` carries a tier tag right under its heading:
   observing the browser, judging accuracy of prose. An agent or human
   reads the code, runs the dev server, decides.
 
-Current tier totals across the 89 checks (CSS structure + theme container
+Current tier totals across the checks (CSS structure + theme container
 + base variables + color scheme + component structure + naming
-conventions + readme structure):
+conventions + readme structure + publish-command):
 
 | Triad | auto | semi | manual | total |
 |-------|-----:|-----:|-------:|------:|
@@ -60,10 +60,11 @@ conventions + readme structure):
 | color-scheme | 2 | 5 | 3 | 10 |
 | component-structure | 7 | 2 | 2 | 11 |
 | naming-conventions | 7 | 4 | 1 | 12 |
-| readme-structure | 7 | 7 | 1 | 15 |
-| **Total** | **43** | **31** | **15** | **89** |
+| readme-structure | 8 | 7 | 1 | 16 |
+| publish-command | 11 | 0 | 0 | 11 |
+| **Total** | **55** | **31** | **15** | **101** |
 
-That's roughly 48% auto, 35% semi, 17% manual — most of the rulebook
+That's roughly 54% auto, 31% semi, 15% manual — most of the rulebook
 *can* be mechanized; the open work is writing the runner script(s).
 
 ## When to consult which file
@@ -78,6 +79,7 @@ That's roughly 48% auto, 35% semi, 17% manual — most of the rulebook
 | Adding or changing how a component reacts to dark mode | [color-scheme.md](./color-scheme.md) → [.decisions](./color-scheme.decisions.md) → implement → [.checks](./color-scheme.checks.md) |
 | Defining new CSS variables on a component, or wiring `--base-*` hooks | [base-variables.md](./base-variables.md) → [.decisions](./base-variables.decisions.md) → implement → [.checks](./base-variables.checks.md) |
 | Writing or restructuring a component's external documentation (slim README + `docs/` folder) | [readme-structure.md](./readme-structure.md) → [.decisions](./readme-structure.decisions.md) → implement → [.checks](./readme-structure.checks.md) |
+| Scaffolding or editing a component's `/publish` slash-command (release flow: pre-checks, version resolution, CHANGELOG / README handling, commit) | [publish-command.md](./publish-command.md) → implement → [.checks](./publish-command.checks.md) |
 | Looking for a concrete worked example | [example-web-player.md](./example-web-player.md) |
 
 If the task touches more than one topic, read every applicable `.md` before

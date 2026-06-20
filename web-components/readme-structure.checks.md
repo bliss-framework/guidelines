@@ -438,6 +438,76 @@ the deviation in `VALIDATION-NOTES.md` under a
 
 ---
 
+## C-RS-16 — `## What's New in vX.Y.Z` sections follow the canonical format
+
+**Tier:** `[auto]`
+
+**What:** The README contains at least one (and at most two)
+`## What's New in vX.Y.Z` section(s), each one matching the
+canonical format defined in
+[readme-structure.md](./readme-structure.md) → "`## What's New in
+vX.Y.Z` — canonical format":
+
+1. **Heading shape** — `## What's New in v<semver>` (lowercase
+   `v`, no backticks around the version, no date).
+2. **Section count** — exactly 1 or 2 sections. Three or more
+   means the publish step's trim pass was skipped; older releases
+   belong in `CHANGELOG.md`, not in the README.
+3. **Bullet pattern** — every bullet in a `What's New` section
+   starts with `- **` (bold-opened lead phrase) and contains
+   ` — ` (a true em-dash separator, U+2014, with surrounding
+   spaces) between the bold lead phrase and the prose body. Plain
+   hyphens or en-dashes don't satisfy the rule.
+4. **No sub-headers** — no `### Added` / `### Fixed` headings
+   inside a `What's New` section. The structured Added/Changed/
+   Fixed split lives in `CHANGELOG.md`. What's New is a flat
+   list.
+
+The format exists so a reader who has skimmed one component's
+release highlights knows what to expect from the next, and so the
+`/publish` slash-command in every repo drafts new sections in the
+same shape rather than each one inventing its own.
+
+**How to verify:**
+
+```bash
+# 1) At least one canonical heading is present
+grep -cE "^## What's New in v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$" \
+  packages/<component>/README.md
+
+# 2) At most two canonical headings are present
+[ "$(grep -cE "^## What's New in v" packages/<component>/README.md)" -le 2 ]
+
+# 3) Every bullet directly under such a heading starts with `- **`
+#    and contains ` — ` (em-dash + spaces). The .checks.sh script
+#    walks each section's body and counts violations.
+
+# 4) No `### ` sub-heading inside any `What's New` block.
+```
+
+The auto-script bundles checks 1–4 and reports which bullets fail
+the lead-phrase / em-dash pattern.
+
+**Pass:** 1 or 2 canonical headings present; every bullet under
+them matches the `- **…** — …` pattern; no `### ` sub-headings
+inside the section.
+
+**Failure mode:** Each release ends up advertised in a different
+format — some sections use plain bullets, some use `### Added` /
+`### Fixed` sub-headers lifted from CHANGELOG, some use emoji
+prefixes, some skip the bold lead phrase. Readers comparing two
+component READMEs side-by-side see inconsistent voices; the
+publish slash-command's draft step has no canonical target to
+aim for.
+
+**Exception:** D-RS-5 = C (no "What's new" section at all — see
+the decision in `readme-structure.decisions.md`) — mark N/A and
+confirm the CHANGELOG link has moved to "Demos & docs" instead.
+
+**Tag:** D-RS-5.
+
+---
+
 ## Summary checklist (paste into PR description)
 
 ```
@@ -456,4 +526,5 @@ the deviation in `VALIDATION-NOTES.md` under a
 [ ] C-RS-13 [semi]   docs/accessibility.md covers keyboard + ARIA + focus (N/A if D-RS-2 = B)
 [ ] C-RS-14 [auto]   README acknowledges BlissFramework guidelines + links to blissframework.dev
 [ ] C-RS-15 [auto]   README has canonical ## About paragraph (KeenMate + Pure Admin + standalone + --base-*)
+[ ] C-RS-16 [auto]   ## What's New in vX.Y.Z sections follow canonical format (1–2 sections, `- **…** — …` bullets, no sub-headers)
 ```

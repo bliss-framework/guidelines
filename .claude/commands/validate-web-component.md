@@ -713,14 +713,15 @@ wants only the latest, they can `.gitignore` the pattern
 ## Step 9 — Interactive follow-up
 
 After the chat report and punch-list file are written, walk these
-two prompts so the user can act on the findings while the context
+three prompts so the user can act on the findings while the context
 is fresh. Pose each question in chat (a numbered list + free-form
 reply is fine; `AskUserQuestion` with `multiSelect: true` is a
 tidier UX when the item count is ≤ 4).
 
-If both 9a and 9b have zero items, skip Step 9 entirely with a
-single line: *"No follow-up needed — no undocumented exceptions
-and no deferred entries to act on."*
+If 9a, 9b, **and 9c** all have zero items, skip Step 9 entirely
+with a single line: *"No follow-up needed — no undocumented
+exceptions, no deferred entries, and no Strategy A migration
+opportunity."*
 
 ### 9a — Offer to record undocumented exceptions in `VALIDATION-NOTES.md`
 
@@ -779,6 +780,108 @@ fixes the code and removes the entry.
 Items the user declines remain Fails in the punch-list and stay as
 deferrals in `VALIDATION-NOTES.md` — they'll re-surface next run,
 by design.
+
+### 9c — Offer to migrate Strategy A → Strategy B (color-scheme)
+
+`color-scheme.md` documents two dark-mode strategies. Strategy B is
+the recommended default for any component that already follows the
+fallback-chain discipline; Strategy A is the legacy / opt-in path for
+components that can't migrate cheaply. **Every validation run must
+prompt the user when Strategy A is detected**, because Strategy A's
+hardcoded literals silently shadow consumer `--base-*` overrides and
+make the dark-mode file ~5× longer than it needs to be.
+
+**Detect Strategy A.** Read the component's dark-mode CSS file
+(usually `src/css/dark-mode.css` or `src/css/_dark-mode.css`) and
+look for either pattern:
+
+1. **Variable redeclaration inside a conditional theme-signal
+   selector** — e.g. `:host([data-theme="dark"]) { --xx-bg: #1a1a1a;
+   --xx-text: #f5f5f5; ... }`, or the same shape on `:host-context(...)`,
+   `[data-theme="dark"] .<prefix>-container`, `.<prefix>-container[data-theme="dark"]`,
+   `@media (prefers-color-scheme: dark)`. Two or more `--<prefix>-X:`
+   declarations inside any such block is the Strategy A signature.
+2. **Absence of `color-scheme: dark` declarations on conditional
+   selectors.** A Strategy B component would have lines like
+   `:host([data-theme="dark"]) { color-scheme: dark; }`. If those are
+   missing AND the file contains theme-signal selectors, the component
+   is doing Strategy A by elimination.
+
+Skip 9c **only** when the dark-mode file genuinely contains no
+theme-signal selectors at all (Strategy 1 — `light-dark()`-only, no
+framework signals) — that's neither A nor B, just the cleanest case.
+
+**If Strategy A is detected, ask once per run, every run, even if a
+`VALIDATION-NOTES.md` entry already covers C-BV-9 / similar.** The
+register entry stops the check from re-surfacing as a Fail, but the
+migration question is orthogonal: A is a legitimate strategy, and B
+is a better one — the team needs the prompt to decide whether *this*
+round is when they switch.
+
+Phrase the prompt with the **short pitch for why B is better** so the
+user can answer without re-reading `color-scheme.md`. Use
+`AskUserQuestion` with two single-select options ("Migrate now" /
+"Stay on A this round"). The pitch:
+
+> This component is using **Strategy A** in `<dark-mode file>` — it
+> overrides each `--<prefix>-*` variable inside every theme-signal
+> selector. Strategy B flips `color-scheme: dark` on the same
+> selectors instead and lets `light-dark()` in the `--base-*`
+> fallbacks resolve automatically. Why B is better:
+>
+> - **One declaration per signal**, not N variables × M signals. Past
+>   migrations have shrunk `dark-mode.css` by ~5× for the same
+>   coverage.
+> - **Consumer `--base-*` overrides survive.** Strategy A's hardcoded
+>   literals (e.g. `#1a1a1a` inside the signal block) silently
+>   replace a consumer's themed dark color; Strategy B leaves the
+>   consumer's value untouched.
+> - **The two halves stay in sync automatically.** Strategy A
+>   requires every new variable to be added to every signal block;
+>   Strategy B updates itself because the variable's own
+>   `light-dark()` fallback flips.
+>
+> Switch this component to Strategy B in this round?
+
+**Prerequisite check.** Before offering the migration, verify the
+component is *eligible*: every color fallback in `variables.css`
+must already use `light-dark(<light>, <dark>)`. If not (grep for
+`light-dark\(` returns zero matches, or many color fallbacks are
+bare literals), state the prerequisite up front so the user knows
+the migration includes that work:
+
+> ⚠️ Prerequisite: the component currently has `N` color fallbacks
+> as bare literals (no `light-dark()`). Strategy B requires all of
+> them to use `light-dark(<light>, <dark>)` — that work is part of
+> the migration.
+
+**If the user accepts**, do NOT migrate in this validation pass
+(the validator is read-only per Step 0). Instead, write the
+migration as a top-priority entry in the punch-list file you just
+produced — append it as fix #0 (before existing fixes) with the
+concrete edits required:
+
+1. Replace every bare-literal color fallback in `variables.css` with
+   `light-dark(<light>, <dark>)`.
+2. Replace every variable-redeclaration block in `dark-mode.css`
+   with `color-scheme: dark` (or `light`) on the same selectors.
+3. Remove the now-stale `C-BV-9` entry from `VALIDATION-NOTES.md`
+   (it covered the Strategy A signal-overrides; Strategy B doesn't
+   need it).
+
+Then confirm in chat:
+
+> Added Strategy A → B migration as fix #0 in
+> `validation_<timestamp>.md`. Run the migration; the next
+> validation will detect Strategy B and skip 9c.
+
+**If the user declines**, note it in chat and move on:
+
+> Staying on Strategy A this round. I'll ask again next validation.
+
+Do not record the decline in `VALIDATION-NOTES.md` — declining is
+not an architectural decision, it's a "not this round" deferral.
+The next run re-asks.
 
 ## Discipline
 
