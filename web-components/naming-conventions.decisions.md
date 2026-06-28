@@ -86,23 +86,30 @@ constant. Don't mix interpretations within one attribute.
 
 ---
 
-## D-NC-5 — Public-notification surface
+## D-NC-5 — Public-event (notification) surface
 
-**Question:** How do consumers subscribe to fire-and-forget
-notifications?
+**Question:** A function whose return value the component ignores is an
+**event**, not a callback (see [naming-conventions.md](./naming-conventions.md)
+→ "The consumer-function hierarchy"). How do consumers subscribe to the
+component's fire-and-forget events?
 
 | Option | When to pick |
 |--------|--------------|
-| **A — Both `CustomEvent` and `*Callback` field** *(default for web-components)* | Web-component consumed in any framework. Dispatch the bare-name `CustomEvent` AND call the optional config-field `*Callback`. Parallel APIs. |
-| B — `on*` Svelte props only *(default for Svelte components)* | Svelte component consumed in a Svelte app. No `CustomEvent` is dispatched; props are the only surface. |
-| C — `CustomEvent` only | Acceptable for web-components where no JS consumer is anticipated and removing the `*Callback` field simplifies the surface. Document why. |
-| D — `*Callback` only | Acceptable for plain JS-class components consumed only via `new` (no DOM API at all). Rare. |
+| **A — Both `CustomEvent` and `on*` config field** *(default for web-components)* | Web-component consumed in any framework. Dispatch the bare-name `CustomEvent` AND call the optional config-field `on*`. Parallel APIs. |
+| B — `on*` Svelte props only *(default for Svelte components)* | Svelte component consumed in a Svelte app. No `CustomEvent` is dispatched; `on*` props are the only surface. |
+| C — `CustomEvent` only | Acceptable for web-components where no JS consumer is anticipated and removing the `on*` field simplifies the surface. Document why. |
+| D — `on*` field only | Acceptable for plain JS-class components consumed only via `new` (no DOM API at all). Rare. |
 
 **Default:** A for web-components; B for Svelte components.
 
 **Your pick:** A / B / C / D
 
 If C or D, justify briefly: ____________
+
+**Note:** none of these options uses `*Callback`. The `Callback` suffix
+is reserved for functions whose return value the component consumes —
+`before*Callback` interceptors (D-NC-8), `get*Callback` data extractors
+(D-NC-7), and plain `*Callback` behavior providers.
 
 ---
 
@@ -203,7 +210,7 @@ Naming conventions decisions:
 - D-NC-2  CSS prefix:                   <prefix>           (cites D-BV-1)
 - D-NC-3  Logic class name:             <name>             (cites D-CST-2)
 - D-NC-4  boolean attribute defaults:   <per-attr table>
-- D-NC-5  notification surface:         A both / B on* / C CustomEvent only / D Callback only
+- D-NC-5  event (notification) surface: A both / B on* props / C CustomEvent only / D on* field only
 - D-NC-6  CustomEvent names:            <list>             (N/A for Svelte)
 - D-NC-7  *Member + get*Callback pair:  A / B / C / D
 - D-NC-8  before*Callback interceptors: A — <list> / B none

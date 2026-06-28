@@ -8,6 +8,71 @@ Categories used: **Added**, **Changed**, **Removed**, **Fixed**.
 
 ---
 
+## 2026-06-28
+
+### Changed
+
+- **Re-axed the consumer-function naming hierarchy on the return value,
+  not the host framework — `C-NC-4` is now the "return-value test", and
+  the `Callback` suffix is reserved for functions whose return the
+  component uses.** Before this, both the rulebook and the public
+  manifesto defined a "notification" by *host shape + `void` return*: a
+  void-returning field on a JS `Config` object had to be `*Callback`
+  (`selectCallback`, `changeCallback`), while the same notification on a
+  Svelte prop had to be `on*` (`onNodeClick`). That rule forced
+  `@keenmate/web-multiselect` to rename `onClick` → `clickCallback` on
+  its `ActionButton` config even though the return value is ignored
+  (`multiselect.ts:1318`, promise not even awaited) — mislabelling a
+  fire-and-forget **event** as a **callback**. The manifesto was also
+  self-contradictory: it listed `onClick (on ActionButton)` as a valid
+  `on*` config-field notification *and* demanded `*Callback` for config
+  notifications. The new seam is one semantic question — **does the
+  component use the function's return value?** If ignored, it's an
+  **event**: `on*` on any field surface (Svelte prop *or* JS config
+  field) and/or a bare `CustomEvent` on the DOM. If consumed, it's a
+  **callback**: `before*Callback` (interceptor), `get*Callback` (data
+  extractor, paired with `*Member`), or plain `*Callback` (behavior
+  provider). Host framework now decides only *where an event's field
+  lives and whether a `CustomEvent` also fires* — it never turns an
+  event into a callback.
+  - `C-NC-4` rewritten from "notification callbacks match host shape" to
+    "events use `on*` / callbacks use `*Callback` (return-value test)".
+    It gained a mechanical `[auto]` half — any `*Callback` field typed
+    `=> void` / `=> Promise<void>` (excluding `before*Callback`, whose
+    return is consumed) is an event wearing the wrong suffix — plus a
+    `[semi]` half: read each `on*` field's return type; a non-void
+    return means a callback mis-named `on*`.
+  - `D-NC-5` recast from "public-notification surface" to "public-event
+    (notification) surface"; its four options now spell the config-field
+    surface `on*`, never `*Callback`, with an explicit note that
+    `*Callback` is reserved for return-consuming functions.
+  - Files touched: `naming-conventions.md` (TL;DR, the renamed
+    "consumer-function hierarchy" section + one-question flow,
+    parallel-APIs example, `CustomEvent`↔`on*` mapping in CustomEvent
+    naming, anti-patterns, worked-example pointer),
+    `naming-conventions.decisions.md` (D-NC-5 + summary line),
+    `naming-conventions.checks.md` (C-NC-4 + summary checklist),
+    `naming-conventions.checks.sh` (new auto C-NC-4 block excluding
+    `before*`; updated semi-note), `README.md` index (events/callbacks
+    bullets), `.claude/commands/validate-naming-conventions.md` and
+    `validate-web-component.md` (C-NC-4 prose + headings). The sibling
+    public manifesto
+    `BlissFramework/web/docs/coding-guidelines-javascript/naming-conventions.md`
+    was updated in lockstep: the line-172-vs-173 contradiction resolved
+    in favour of the return-value axis, the mermaid flowchart and
+    summary tables rebuilt, `selectCallback`/etc. examples renamed to
+    `on*`, and the old config-`*Callback`-notification spelling marked
+    deprecated.
+  - Validation against the live suite: `web-daterangepicker` already
+    complies — its `onClick` / `onSelect` are `on*` (return `void`) and
+    all 16 `*Callback` fields genuinely consume their return, so it
+    passes the new C-NC-4 (auto + semi). `web-multiselect` now correctly
+    **fails** the auto half on `selectCallback`, `deselectCallback`,
+    `changeCallback`, `clickCallback` — the four fire-and-forget
+    notifications that should be `onSelect` / `onDeselect` / `onChange` /
+    `onClick`. Renaming them is a breaking API change owned by the
+    `web-multiselect` repo, tracked separately.
+
 ## 2026-06-18
 
 ### Added

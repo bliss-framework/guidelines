@@ -420,7 +420,7 @@ Naming conventions
 [ ] C-NC-1  [auto]   custom-element tag hyphenated + prefixed     (N/A Svelte)
 [ ] C-NC-2  [auto]   CustomEvent names bare and short              (N/A Svelte)
 [ ] C-NC-3  [auto]   boolean Config/Props fields use is*/should*/has*/can*
-[ ] C-NC-4  [semi]   notification callbacks match host shape
+[ ] C-NC-4  [semi]   events use on* / callbacks use *Callback (return-value test)
 [ ] C-NC-5  [semi]   interceptors use before*Callback
 [ ] C-NC-6  [auto]   data extractors use get*Callback + *Member pair
 [ ] C-NC-7  [semi]   ATTRIBUTE_TABLE single source of truth        (N/A Svelte)

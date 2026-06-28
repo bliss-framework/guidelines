@@ -114,45 +114,53 @@ a glance whether a Config field is a flag or a value.
 
 ---
 
-## C-NC-4 — Notification callbacks use the right shape
+## C-NC-4 — Events use `on*`, callbacks use `*Callback` (the return-value test)
 
-**Tier:** `[semi]` — needs host detection (web-component vs Svelte) first; then the grep + regex is mechanical
+**Tier:** `[semi]` — the void-returning-`*Callback` half is mechanical (and run by `.checks.sh`); the `on*`-returns-a-value half needs return-type reading
 
-**What:** Every fire-and-forget notification field uses the shape
-matching the host technology:
+**What:** The suffix matches the **semantics**, not the host framework.
+The seam is whether the component uses the return value:
 
-| Host | Pattern |
-|------|---------|
-| Web-component config | `*Callback` |
-| Svelte component prop | `on*` |
-| Custom-element DOM surface | no field; `CustomEvent` dispatch |
+| The function's return value is… | It's a… | Name |
+|---------------------------------|---------|------|
+| Ignored (fire-and-forget) | **event** | `on*` field (Svelte prop *or* JS config field) and/or bare `CustomEvent` |
+| Consumed by the component | **callback** | `before*Callback` / `get*Callback` / plain `*Callback` |
 
-**How to verify (web-component):**
+`*Callback` is reserved for return-consuming functions. A void-returning
+field named `*Callback` is an event wearing the wrong suffix — rename to
+`on*`. An `on*` field that returns a value the component reads is the
+inverse error — rename to the matching `*Callback`.
+
+**How to verify:**
 ```bash
-# Find every Config field that's a function returning void
-grep -En "^\s+\w+\??:\s+\(.*\)\s*=>\s*void" packages/<component>/src/types.ts
+# (a) [auto] Fields named *Callback that return void → should be on* events.
+#     before*Callback is exempt — its return (false / modified args) IS consumed.
+grep -rEn "^\s+[a-z][a-zA-Z0-9]*Callback\??:\s*\(.*\)\s*=>\s*(void|Promise<void>)" \
+    packages/<component>/src/types.ts \
+    packages/<component>/src/lib/**/*.svelte \
+    packages/<component>/src/lib/**/*.svelte.ts \
+  | grep -vE "\bbefore[A-Z]"
+
+# (b) [semi] on* fields — confirm each returns void (events don't consume returns)
+grep -rEn "^\s+on[A-Z]\w*\??:\s*\(" \
+    packages/<component>/src/types.ts \
+    packages/<component>/src/lib/**/*.svelte \
+    packages/<component>/src/lib/**/*.svelte.ts
 ```
 
-Each match should be named `*Callback` (for notifications) or the
-right alternative (`before*Callback`, `get*Callback`, plain
-`*Callback`).
+(a) must return **no matches**. For each match in (b), read the return
+type: anything other than `void` / `Promise<void>` means the function
+consumes its return and is a callback mis-named `on*` — rename it to the
+matching `before*Callback` / `get*Callback` / plain `*Callback`.
 
-**How to verify (Svelte component):**
-```bash
-grep -En "^\s+on[A-Z]\w+\??:\s+\(.*\)\s*=>" packages/<component>/src/lib/components/*.svelte
-```
+**Pass:** Query (a) returns nothing. Every `on*` field in (b) returns
+void. The `Callback` suffix appears only on return-consuming functions;
+events (return ignored) are `on*` and/or a bare `CustomEvent`.
 
-Notification fields should be named `on*`. Return-value-required
-fields stay as `*Callback`.
-
-**Pass (web-component):** Every void-returning Config field is
-`*Callback`-suffixed.
-
-**Pass (Svelte):** Every notification prop is `on*`-prefixed. No
-notification prop uses `*Callback`.
-
-**Failure mode:** Mixed conventions; consumers can't predict the
-suffix.
+**Failure mode:** A fire-and-forget notification named `*Callback`
+(`selectCallback`, `clickCallback`) tells readers the return value
+matters when it doesn't — the exact mislabel that forced
+`onClick → clickCallback` in web-multiselect.
 
 **Tag:** D-NC-5.
 
@@ -402,7 +410,7 @@ Naming conventions
 [ ] C-NC-1  [auto]   custom-element tag hyphenated + prefixed     (N/A Svelte)
 [ ] C-NC-2  [auto]   CustomEvent names bare and short              (N/A Svelte)
 [ ] C-NC-3  [auto]   boolean config fields use is*/should*/has*/can*
-[ ] C-NC-4  [semi]   notification callbacks match host shape
+[ ] C-NC-4  [semi]   events use on* / callbacks use *Callback (return-value test)
 [ ] C-NC-5  [semi]   interceptors use before*Callback
 [ ] C-NC-6  [auto]   data extractors use get*Callback + *Member pair
 [ ] C-NC-7  [semi]   ATTRIBUTE_TABLE single source of truth        (N/A Svelte)

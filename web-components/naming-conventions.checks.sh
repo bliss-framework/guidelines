@@ -205,6 +205,31 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# C-NC-4 (auto portion) — *Callback fields must not be fire-and-forget (=> void)
+#   The seam is the return value: a function whose return is ignored is an
+#   event (on*), not a callback. A void-returning *Callback is an event
+#   wearing the wrong suffix → rename to on*.
+#   before*Callback interceptors are EXEMPT — their return (false / modified
+#   args) is consumed. The on*-returns-a-value half stays [semi].
+# -----------------------------------------------------------------------------
+
+if [[ "${#TYPE_FILES[@]}" -eq 0 ]]; then
+  record_skip "C-NC-4" "no types files found (auto portion)"
+else
+  VOID_CALLBACKS=$(grep -hEn "^\s+[a-z][a-zA-Z0-9]*Callback\??:\s*\(.*\)\s*=>\s*(void|Promise<void>)" \
+                   "${TYPE_FILES[@]}" 2>/dev/null | \
+                   grep -oE "[a-z][a-zA-Z0-9]*Callback" | \
+                   grep -vE "^before" | sort -u)
+  if [[ -z "$VOID_CALLBACKS" ]]; then
+    record_pass "C-NC-4  no fire-and-forget (=> void) *Callback fields (auto portion; on*-returns-value half is [semi])"
+  else
+    echo "$VOID_CALLBACKS" | sed 's|^|        |'
+    BAD_CB_COUNT=$(echo "$VOID_CALLBACKS" | wc -l)
+    record_fail "C-NC-4" "$BAD_CB_COUNT void-returning *Callback field(s) — these are events, rename to on*"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
 # C-NC-6 — Data extractors use get*Callback + *Member pair
 #   For every *Member field, expect a matching get*Callback (capitalized).
 # -----------------------------------------------------------------------------
@@ -358,7 +383,7 @@ echo "  ${C_FAIL}Fail${C_RESET}:    $FAIL"
 echo "  ${C_SKIP}Skip${C_RESET}:    $SKIP"
 echo
 echo "  Semi / manual checks NOT run by this script:"
-echo "    [semi]   C-NC-4  (notification callbacks match host shape — needs host detection)"
+echo "    [semi]   C-NC-4  (on* fields must return void — needs return-type reading; void-*Callback half is auto above)"
 echo "    [semi]   C-NC-5  (interceptors use before*Callback — needs return-type heuristic)"
 echo "    [semi]   C-NC-7  (ATTRIBUTE_TABLE drives observedAttributes — needs reading impl)"
 echo "    [semi]   C-NC-12 (no magic strings inline — needs duplicate-detection + judgment)"

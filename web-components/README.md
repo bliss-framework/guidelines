@@ -129,11 +129,12 @@ of the component's README.
       `'change'`) — no `on*` prefix, no `Event` suffix.
 - [ ] Boolean config fields use `is*` / `should*` / `has*` / `can*`
       prefix.
-- [ ] Notification callbacks use the host-matched shape: `*Callback`
-      for web-component config / `on*` for Svelte component props.
-- [ ] Interceptors use `before*Callback`; data extractors use
-      `get*Callback` paired with `*Member`; behavior providers use
-      plain `*Callback`.
+- [ ] Events (return ignored — fire-and-forget) use `on*` and/or a bare
+      `CustomEvent`, on any surface. `*Callback` is **reserved** for
+      functions whose return value the component uses.
+- [ ] Callbacks (return consumed): interceptors use `before*Callback`;
+      data extractors use `get*Callback` paired with `*Member`; behavior
+      providers use plain `*Callback`.
 - [ ] One `ATTRIBUTE_TABLE` constant drives `observedAttributes`,
       initial parsing, and `attributeChangedCallback` (web-components
       only).

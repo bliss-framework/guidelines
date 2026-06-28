@@ -110,16 +110,26 @@ For every check the script skipped (or that's tagged `[semi]` /
 `[manual]` in `naming-conventions.checks.md`), execute the "How to
 verify" prose:
 
-- **C-NC-4** `[semi]` (notification callbacks match host shape) —
-  knowing the host (Step 2) is the prelude. Then:
-  - Web-component: confirm every void-returning Config field ends in
-    `*Callback`. Confirm every notification `CustomEvent` dispatched
-    in TS code is documented in the manifest / README as an event
-    the consumer can subscribe to.
-  - Svelte: confirm every void-returning prop on the top-level
-    `.svelte` component starts with `on*` (`onNodeClick`,
-    `onSelectionChange`, …). Confirm no notification prop uses
+- **C-NC-4** `[semi]` (events use `on*`, callbacks use `*Callback` —
+  the return-value test) — the seam is whether the component uses the
+  return value, **not** the host framework. The `.checks.sh` script
+  already flags the auto half (any `*Callback` field typed `=> void` /
+  `=> Promise<void>`, excluding `before*Callback`); your job is the
+  judgment half:
+  - Confirm every field named `*Callback` genuinely **consumes** its
+    return (`before*` cancel/modify, `get*` value, plain `*Callback`
+    behavior result). A void-returning `*Callback` is an event wearing
+    the wrong suffix → it must be `on*` (`selectCallback` →
+    `onSelect`, `clickCallback` → `onClick`).
+  - Conversely, read the return type of every `on*` field: anything
+    other than `void` / `Promise<void>` means it consumes its return
+    and is a callback mis-named `on*` → rename to the matching
     `*Callback`.
+  - This holds identically for web-components (config fields) and
+    Svelte (props). Then confirm every notification `CustomEvent`
+    dispatched in TS code is documented in the manifest / README as an
+    event the consumer can subscribe to, and that its `on*` config
+    twin (if any) shares the spelling (`'select'` ↔ `onSelect`).
 - **C-NC-5** `[semi]` (interceptors use `before*Callback`) — Grep
   for fields whose function-type return allows cancellation
   (`boolean | void`, `boolean | object | void`, `false | …`). For
@@ -174,7 +184,7 @@ Output to the conversation:
 
 ## Semi / manual checks
 
-### C-NC-4 — Notification callbacks match host shape
+### C-NC-4 — Events use on* / callbacks use *Callback (return-value test)
 **Status:** ✅ / ❌ / ⚠️ Manual
 **Evidence:** <files inspected>
 **Findings:** <what was found>
