@@ -562,8 +562,9 @@ If yes to all three, the steps are:
   comprehensive existing manifest. Mirrors the canonical taxonomy.
 - `@keenmate/web-grid/src/css/_variables.css` — reference implementation of
   the fallback-chain pattern.
-- `@keenmate/web-multiselect/src/css/_variables.css` — minimal version of the
-  same pattern. Good starting point for a new component.
+- `@keenmate/web-multiselect/src/css/variables.css` — minimal version of the
+  same pattern (canonical no-underscore name post-migration). Good starting
+  point for a new component.
 
 ---
 
