@@ -177,7 +177,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# C-RS-15 — README has canonical ## About paragraph (KeenMate + Pure Admin + standalone + --base-*)
+# C-RS-15 — README has canonical ## About paragraph (Keenmate + Pure Admin + standalone + --base-*)
 # -----------------------------------------------------------------------------
 
 HAS_ABOUT_HEADING=0
@@ -187,7 +187,7 @@ HAS_STANDALONE=0
 HAS_BASE_TAXONOMY=0
 
 grep -qiE "^##\s+(About|Credits)"        "$README" && HAS_ABOUT_HEADING=1
-grep -qiE "KeenMate"                     "$README" && HAS_KEENMATE=1
+grep -qiE "Keenmate"                     "$README" && HAS_KEENMATE=1
 grep -qiE "Pure[ -]?Admin|pureadmin"     "$README" && HAS_PUREADMIN=1
 grep -qiE "standalone"                   "$README" && HAS_STANDALONE=1
 grep -qE  "\-\-base-\*"                  "$README" && HAS_BASE_TAXONOMY=1
@@ -197,11 +197,11 @@ if [[ "$HAS_ABOUT_HEADING" -eq 1 \
    && "$HAS_PUREADMIN"     -eq 1 \
    && "$HAS_STANDALONE"    -eq 1 \
    && "$HAS_BASE_TAXONOMY" -eq 1 ]]; then
-  record_pass "C-RS-15 README has canonical About paragraph (KeenMate + Pure Admin + standalone + --base-*)"
+  record_pass "C-RS-15 README has canonical About paragraph (Keenmate + Pure Admin + standalone + --base-*)"
 else
   MISSING=()
   [[ "$HAS_ABOUT_HEADING" -eq 0 ]] && MISSING+=("## About heading (## Credits accepted during transition)")
-  [[ "$HAS_KEENMATE"      -eq 0 ]] && MISSING+=("KeenMate author attribution")
+  [[ "$HAS_KEENMATE"      -eq 0 ]] && MISSING+=("Keenmate author attribution")
   [[ "$HAS_PUREADMIN"     -eq 0 ]] && MISSING+=("Pure Admin reference")
   [[ "$HAS_STANDALONE"    -eq 0 ]] && MISSING+=("'standalone' wording")
   [[ "$HAS_BASE_TAXONOMY" -eq 0 ]] && MISSING+=("--base-* taxonomy reference")

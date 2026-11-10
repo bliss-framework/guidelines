@@ -2,7 +2,7 @@
 
 > **Applies to both web-components and Svelte components.** The folder is
 > called `web-components/` for historical reasons; the rules below cover
-> *any* KeenMate / Bliss component that exposes a single root element to
+> *any* Keenmate / Bliss component that exposes a single root element to
 > the DOM. Where the two technologies differ, the doc spells out the
 > per-technology shape.
 
@@ -297,20 +297,18 @@ is the #1 footgun and is forbidden.
 .ltree-container      { color-scheme: light dark; }
 ```
 
-However, a **conditional** declaration on `:host(...)` /
-`:host-context(...)` / `.<prefix>-container[...]` / ancestor-class
-selectors fires *only* when the consumer has explicitly signalled
-dark or light. It amplifies the consumer's intent rather than
-fighting their page inheritance. This is a legitimate, often
-*cleaner* dark-mode strategy — see
-[color-scheme.md](./color-scheme.md) → "Strategy A vs Strategy B."
+However, a **conditional** declaration — web components: the canonical
+`:host([data-context-theme="…"])` / `:host([data-theme="…"])` rules; Svelte:
+`.<prefix>-container[...]` / ancestor-class selectors — fires *only* when a
+signal is present. It amplifies the consumer's intent rather than fighting
+their page inheritance. See [color-scheme.md](./color-scheme.md) →
+"The canonical block."
 
 ```css
-/* RIGHT — conditional, fires only when consumer signalled dark */
-:host([data-theme="dark"]),
-:host-context([data-bs-theme="dark"]),
-:host-context(.dark) {
-  color-scheme: dark;   /* amplifies the consumer's signal */
+/* RIGHT — conditional, fires only when a signal is present */
+:host([data-context-theme="dark"]),   /* page / theme-source, written by core */
+:host([data-theme="dark"]) {          /* per-instance */
+  color-scheme: dark;
 }
 ```
 
@@ -330,42 +328,24 @@ C-TC-4 enforces the bare-vs-conditional distinction.
 
 ## Dark mode at the container
 
-The four signals from [color-scheme.md](./color-scheme.md) — OS
-preference, framework class on an ancestor, framework class on the
-container itself, per-instance `data-theme` — all flip variables on
-the container. The exact selectors differ between web-components and
+Every dark / light rule targets the container. The selectors differ between web components and
 Svelte.
 
 ### Web components
 
+Core detects the page / `theme-source` signal and writes `data-context-theme` on the host; the
+per-instance switch is `data-theme`. The container carries exactly the canonical block from
+[color-scheme.md](./color-scheme.md) — it flips `color-scheme`, and the `light-dark()` fallbacks do
+the rest. No `:host-context()`, no `prefers-color-scheme` (C-CS-11):
+
 ```css
-/* OS preference */
-@media (prefers-color-scheme: dark) {
-  :host {
-    --ms-bg:            #1a1a1a;
-    --ms-text-color-1:  #f5f5f5;
-  }
-}
+/* Page / theme-source signal — core writes data-context-theme on the host */
+:host([data-context-theme="dark"])  { color-scheme: dark; }
+:host([data-context-theme="light"]) { color-scheme: light; }
 
-/* Framework class on ANY ancestor (light DOM) */
-:host-context([data-theme="dark"]),
-:host-context([data-bs-theme="dark"]),
-:host-context(.dark) {
-  --ms-bg:            #1a1a1a;
-  --ms-text-color-1:  #f5f5f5;
-}
-
-/* Per-instance attribute on the component element itself */
-:host([data-theme="dark"]) {
-  --ms-bg:            #1a1a1a;
-  --ms-text-color-1:  #f5f5f5;
-}
-
-/* SYMMETRIC light selectors so a dark page can opt one instance back to light */
-:host([data-theme="light"]) {
-  --ms-bg:            #ffffff;
-  --ms-text-color-1:  #242424;
-}
+/* Per-instance attribute — declared last, wins */
+:host([data-theme="dark"])  { color-scheme: dark; }
+:host([data-theme="light"]) { color-scheme: light; }
 ```
 
 ### Svelte components
@@ -633,10 +613,9 @@ components, optional for inline atoms with no layout footprint).
   `position: relative` on `:host` (all floating panels are
   `position: fixed` via Floating UI; in-flow `.ms__toggle` /
   `.ms__counter` anchor to `.ms__input-wrapper`), and
-  **color-scheme-flipping** dark-mode strategy (conditional
-  `color-scheme: dark` on `:host([data-theme="dark"])` /
-  `:host-context(...)` instead of overriding `--ms-*` variables —
-  preserves consumer `--base-*` overrides). The reference
+  **color-scheme-flipping** dark mode (the canonical four rules on
+  `:host([data-context-theme])` / `:host([data-theme])` instead of
+  overriding `--ms-*` variables — preserves consumer `--base-*` overrides). The reference
   implementation for form-control components. Inspect
   `src/css/variables.css` + `src/css/dark-mode.css`.
 - `@keenmate/web-grid` — same pattern, larger variable surface area.

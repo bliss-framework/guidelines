@@ -80,9 +80,17 @@ else
     tr '\f' '\n' > "$STRIPPED"
 
   # Find var(--base-X, #color) patterns — bare hex fallbacks (not wrapped in
-  # light-dark()). Skip the documented exception names: accent-color* (brand
-  # color, same in both modes) and *-on-accent (text contrast for the brand).
+  # light-dark()). Skip the documented exceptions, colors the base-css-variables
+  # contract keeps the same in both modes:
+  #   2.0  --base-<role>-color (the role's fill: primary, secondary, success,
+  #        danger, warning, info) and --base-on-<role>-text-color (text on it)
+  #   1.x  accent-color* and *-on-accent (removed in 2.0; kept so components
+  #        not yet migrated don't fail here)
+  # The role's other steps (-hover, -active, -bg-subtle, -text-color) differ
+  # per mode, so they are not exempt.
+  ROLES='primary|secondary|success|danger|warning|info'
   ALL_BARE=$(grep -nE "var\(--base-[a-z-]+,\s*#[0-9a-f]{3,8}\s*\)" "$STRIPPED" 2>/dev/null | \
+             grep -vE "var\(--base-(($ROLES)-color|on-($ROLES)-text-color)," | \
              grep -vE "var\(--base-(accent-color|text-color-on-accent|color-on-accent|text-on-accent)" || true)
   if [[ -z "$ALL_BARE" ]]; then
     BARE_HEX=0
@@ -92,7 +100,7 @@ else
   rm -f "$STRIPPED"
 
   if [[ "$BARE_HEX" -eq 0 ]]; then
-    record_pass "C-CS-2  color fallbacks use light-dark() (accent / on-accent exceptions excluded)"
+    record_pass "C-CS-2  color fallbacks use light-dark() (role fill / on-role text exceptions excluded)"
   else
     echo "$ALL_BARE" | head -5 | sed 's|^|        |'
     record_fail "C-CS-2" "$BARE_HEX non-exempt bare-hex color fallback(s) not wrapped in light-dark()"
@@ -169,6 +177,75 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# C-CS-3 — the canonical theme block (web components on core)
+#   :host([data-context-theme="dark"|"light"]) then :host([data-theme="dark"|"light"]),
+#   each setting color-scheme, per-instance AFTER context in the same file.
+# C-CS-11 — no retired theme mechanisms
+#   :host-context( / prefers-color-scheme / a second per-instance switch in CSS,
+#   matchMedia('(prefers-color-scheme…') in the sources.
+# Comments are stripped first, so explanatory comments that name them pass.
+# -----------------------------------------------------------------------------
+
+if [[ "$IS_SVELTE" -eq 1 ]]; then
+  record_skip "C-CS-3" "Svelte component — container rules per theme-container.md"
+  record_skip "C-CS-11" "Svelte component — container rules per theme-container.md"
+else
+  CS_TMP=$(mktemp -d)
+  # One comment-stripped copy per CSS file (same stripping as C-CS-2)
+  while IFS= read -r f; do
+    rel="${f#"$CSS_DIR"/}"
+    mkdir -p "$CS_TMP/$(dirname "$rel")"
+    tr '\n' '\f' < "$f" | sed -E 's|/\*[^*]*\*+([^/*][^*]*\*+)*/||g' | tr '\f' '\n' > "$CS_TMP/$rel"
+  done < <(find "$CSS_DIR" -name "*.css" -type f 2>/dev/null)
+
+  # Line of the first `<selector> … {` block that sets the given color-scheme, in one file.
+  # A selector list (`:host([data-theme="dark"]), .x[data-theme="dark"] {`) counts.
+  rule_line() {  # $1 file, $2 attribute, $3 value
+    awk -v attr="$2" -v val="$3" '
+      BEGIN { pat = ":host\\(\\[" attr "=[\"\x27]" val "[\"\x27]\\]\\)" }
+      $0 ~ pat { start = NR; insel = 1 }
+      insel && /\{/ { inblock = 1; insel = 0 }
+      inblock && $0 ~ ("color-scheme:[[:space:]]*" val) { print start; exit }
+      inblock && /\}/ { inblock = 0; start = 0 }
+    ' "$1"
+  }
+
+  CANON_FILE=""; CANON_OK=0; CANON_ORDER_BAD=0
+  while IFS= read -r f; do
+    cd_=$(rule_line "$f" "data-context-theme" "dark"); cl_=$(rule_line "$f" "data-context-theme" "light")
+    td_=$(rule_line "$f" "data-theme" "dark");         tl_=$(rule_line "$f" "data-theme" "light")
+    if [[ -n "$cd_" && -n "$cl_" && -n "$td_" && -n "$tl_" ]]; then
+      CANON_FILE="${f#"$CS_TMP"/}"
+      ctx_max=$(( cd_ > cl_ ? cd_ : cl_ )); inst_min=$(( td_ < tl_ ? td_ : tl_ ))
+      if [[ "$inst_min" -gt "$ctx_max" ]]; then CANON_OK=1; else CANON_ORDER_BAD=1; fi
+      break
+    fi
+  done < <(find "$CS_TMP" -name "*.css" -type f)
+
+  if [[ "$CANON_OK" -eq 1 ]]; then
+    record_pass "C-CS-3  canonical theme block (data-context-theme, then data-theme) in $CANON_FILE"
+  elif [[ "$CANON_ORDER_BAD" -eq 1 ]]; then
+    record_fail "C-CS-3" "$CANON_FILE has the four rules but data-theme is not declared after data-context-theme (the per-instance switch must win)"
+  else
+    record_fail "C-CS-3" "no file has all four rules: :host([data-context-theme=\"dark\"|\"light\"]) and :host([data-theme=\"dark\"|\"light\"]) setting color-scheme (see color-scheme.md → The canonical block)"
+  fi
+
+  RETIRED=$(grep -rnE ':host-context\(|prefers-color-scheme|:host\(\[(data-bs-theme|theme)[]=]|:host\(\.(dark|light)\)' "$CS_TMP" 2>/dev/null | sed "s|^$CS_TMP/||" || true)
+  JS_DETECT=$(grep -rnE "matchMedia\([^)]*prefers-color-scheme" "$TARGET/src" --include=*.ts --include=*.js 2>/dev/null \
+              | grep -vE '\.(test|spec)\.(ts|js):' | sed "s|^$TARGET/||" || true)
+  rm -rf "$CS_TMP"
+
+  if [[ -z "$RETIRED" && -z "$JS_DETECT" ]]; then
+    record_pass "C-CS-11 no retired theme mechanisms (:host-context, prefers-color-scheme, JS detection, second per-instance switch)"
+  else
+    [[ -n "$RETIRED" ]] && echo "$RETIRED" | head -6 | sed 's|^|        css: |'
+    [[ -n "$JS_DETECT" ]] && echo "$JS_DETECT" | head -4 | sed 's|^|        js:  |'
+    N=$(printf '%s\n%s\n' "$RETIRED" "$JS_DETECT" | grep -c . || true)
+    record_fail "C-CS-11" "$N retired theme mechanism(s) — core detects the page signal (data-context-theme); data-theme is the only per-instance switch"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
 # Summary
 # -----------------------------------------------------------------------------
 
@@ -180,7 +257,6 @@ echo "  ${C_SKIP}Skip${C_RESET}:    $SKIP"
 echo
 echo "  Semi / manual checks NOT run by this script:"
 echo "    [semi]   C-CS-1  (no bare :host { color-scheme } — needs selector classification)"
-echo "    [semi]   C-CS-3  (framework class selectors — needs D-CS-2 conventions)"
 echo "    [semi]   C-CS-6  (Playwright contrast assertions — requires running tests)"
 echo "    [semi]   C-CS-9  (CHANGELOG entry — concreteness is judgment)"
 echo "    [semi]   C-CS-10 (full tooltip check — needs portal-propagation verification;"

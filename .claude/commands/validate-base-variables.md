@@ -108,7 +108,7 @@ For the eight checks the script doesn't cover:
 
 - **C-BV-4** `[semi]` (prefix uniqueness) — cross-check the prefix
   against the reservations table in `base-variables.md`. Search across
-  KeenMate repos (or note the limit if you can't).
+  Keenmate repos (or note the limit if you can't).
 - **C-BV-7** `[semi]` (canonical chain patterns) — inspect the four
   chained variables (dropdown / tooltip / hover / active) in the
   component's `variables.css`. Each must match the canonical chain

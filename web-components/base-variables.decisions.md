@@ -15,7 +15,7 @@ don't make sense.
 
 **Question:** What's the component-local variable prefix?
 
-**Rules:** 2–4 lowercase letters, mnemonic, unique within the KeenMate
+**Rules:** 2–4 lowercase letters, mnemonic, unique within the Keenmate
 component suite. Reserve it by adding to the table in `base-variables.md` →
 "Component prefix convention" *before* you start coding.
 

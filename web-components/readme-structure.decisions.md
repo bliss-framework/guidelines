@@ -18,7 +18,7 @@ these questions don't make sense.
 **Options:**
 
 - **A — `demos.keenmate.com/<component>`** (default for public
-  KeenMate components). Single subdomain, one path per component.
+  Keenmate components). Single subdomain, one path per component.
 - **B — GitHub Pages on the component repo.** Acceptable when the
   central demo site doesn't yet host the component.
 - **C — Storybook (deployed).** Reasonable when the component is

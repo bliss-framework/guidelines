@@ -69,6 +69,21 @@ if [[ -z "$CSS_PREFIX" ]]; then
   exit 2
 fi
 
+MANIFEST="$TARGET/component-variables.manifest.json"
+
+# Names of manifest entries carrying a marker (base-variables.md → "Input
+# variables"). Entries are flat objects, so after flattening each `}` ends one;
+# works without jq.
+manifest_names_with() {
+  [[ -f "$MANIFEST" ]] || return 0
+  tr '\n' ' ' < "$MANIFEST" | sed 's/}/}\n/g' | grep -E "$1" | \
+    grep -oE '"name"\s*:\s*"[^"]+"' | sed -E 's/.*"([^"]+)"$/\1/'
+}
+# "input": true — a --<prefix>-* knob unset by design: read, never declared
+INPUT_VARS=$(manifest_names_with '"input"\s*:\s*true')
+# "readBy": "<package>" — a --base-* read by a core module the component renders
+READ_BY_OTHER=$(manifest_names_with '"readBy"\s*:\s*"[^"]+"')
+
 echo "${C_INFO}Component target:${C_RESET} $TARGET"
 echo "${C_INFO}CSS prefix:${C_RESET}      $CSS_PREFIX"
 echo
@@ -78,12 +93,15 @@ echo "${C_INFO}== Running [auto] checks ==${C_RESET}"
 # -----------------------------------------------------------------------------
 # C-BV-1 — Every visible color resolves through a variable
 #   Same as C-CSS-8. Re-run here for the base-variables triad.
+#   Relative colour syntax from a variable — rgb(from var(--x) r g b) — has no
+#   literal and is skipped.
 # -----------------------------------------------------------------------------
 
 mapfile -t HARDCODED < <(
   grep -nE "(background|color|border|box-shadow|fill|stroke):\s*(#[0-9a-f]|rgb)" \
     "$CSS_DIR"/*.css 2>/dev/null | \
-    grep -vE "/variables\.css:|/dark-mode\.css:"
+    grep -vE "/variables\.css:|/dark-mode\.css:" | \
+    grep -vE ":\s*(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(\s*from\s+var\("
 )
 
 if [[ "${#HARDCODED[@]}" -eq 0 ]]; then
@@ -135,7 +153,8 @@ else
   # We only require a definition for variables consumed BARE — `var(--ms-X)`
   # with no fallback. Variables consumed with a fallback chain — `var(--ms-X,
   # var(--ms-Y, …))` — are deliberate consumer-override hooks and don't need
-  # to be declared with a default (the chain resolves them).
+  # to be declared with a default (the chain resolves them). Neither do
+  # manifest entries marked "input": true — they are unset by design.
 
   # Strip block comments so we don't pick up vars from docs.
   STRIPPED=$(mktemp)
@@ -159,14 +178,15 @@ else
     MISSING=()
     while IFS= read -r v; do
       [[ -z "$v" ]] && continue
-      if ! echo "$DEFINED" | grep -qFx -- "$v"; then
+      if ! echo "$DEFINED" | grep -qFx -- "$v" && \
+         ! echo "$INPUT_VARS" | grep -qFx -- "${v#--}"; then
         MISSING+=("$v")
       fi
     done <<< "$CONSUMED_BARE"
 
     if [[ "${#MISSING[@]}" -eq 0 ]]; then
       C_COUNT=$(echo "$CONSUMED_BARE" | wc -l)
-      record_pass "C-BV-3  every bare-consumed --${CSS_PREFIX}-* var is defined ($C_COUNT vars; fallback-chained reads are exempt)"
+      record_pass "C-BV-3  every bare-consumed --${CSS_PREFIX}-* var is defined ($C_COUNT vars; fallback-chained reads and \"input\" entries are exempt)"
     else
       printf "        bare-read but not defined: %s\n" "${MISSING[@]:0:5}"
       record_fail "C-BV-3" "${#MISSING[@]} --${CSS_PREFIX}-* var(s) bare-read but not defined"
@@ -178,7 +198,6 @@ fi
 # C-BV-5 — Manifest exists and is exported
 # -----------------------------------------------------------------------------
 
-MANIFEST="$TARGET/component-variables.manifest.json"
 PKG="$TARGET/package.json"
 
 if [[ ! -f "$MANIFEST" ]]; then
@@ -196,6 +215,9 @@ fi
 # C-BV-6 — Manifest entries match the code
 #   Every baseVariables[].name should be read in variables.css.
 #   Every componentVariables[].name should be defined on the container.
+#   "input": true entries must be read somewhere instead; "readBy" base entries
+#   are read by a core module, not by this CSS (base-variables.md → "Input
+#   variables").
 #   Requires `jq` if available; falls back to a tolerant regex parse otherwise.
 # -----------------------------------------------------------------------------
 
@@ -218,6 +240,7 @@ else
   PHANTOM_BASE=()
   while IFS= read -r v; do
     [[ -z "$v" ]] && continue
+    echo "$READ_BY_OTHER" | grep -qFx -- "$v" && continue
     if ! grep -qE "var\(--${v}[,)]" "$VARS_FILE" 2>/dev/null; then
       PHANTOM_BASE+=("$v")
     fi
@@ -226,7 +249,9 @@ else
   PHANTOM_COMP=()
   while IFS= read -r v; do
     [[ -z "$v" ]] && continue
-    if ! grep -qE "^\s*--${v}\s*:" "$VARS_FILE" 2>/dev/null; then
+    if echo "$INPUT_VARS" | grep -qFx -- "$v"; then
+      grep -qE "var\(--${v}[,)]" "$CSS_DIR"/*.css 2>/dev/null || PHANTOM_COMP+=("$v (input, never read)")
+    elif ! grep -qE "^\s*--${v}\s*:" "$VARS_FILE" 2>/dev/null; then
       PHANTOM_COMP+=("$v")
     fi
   done <<< "$MANIFEST_COMP"
@@ -239,7 +264,7 @@ else
       printf "        manifest baseVariables not read in CSS: %s\n" "${PHANTOM_BASE[*]:0:5}"
     fi
     if [[ "${#PHANTOM_COMP[@]}" -gt 0 ]]; then
-      printf "        manifest componentVariables not defined in CSS: %s\n" "${PHANTOM_COMP[*]:0:5}"
+      printf "        manifest componentVariables not defined (or, for \"input\", not read) in CSS: %s\n" "${PHANTOM_COMP[*]:0:5}"
     fi
     record_fail "C-BV-6" "$TOTAL_PHANTOM manifest entry(ies) don't match the code"
   fi

@@ -371,21 +371,21 @@ heading citing the consumer-facing URL.
 
 ---
 
-## C-RS-15 — README has the canonical `## About` paragraph (KeenMate + Pure Admin)
+## C-RS-15 — README has the canonical `## About` paragraph (Keenmate + Pure Admin)
 
 **Tier:** `[auto]`
 
 **What:** The README contains the canonical **About** paragraph
 defined in [readme-structure.md](./readme-structure.md) → "`## About`
-— canonical text". The paragraph names KeenMate as the author,
+— canonical text". The paragraph names Keenmate as the author,
 states the component ships standalone, names Pure Admin as the
 auto-theming host, and references the `--base-*` taxonomy as the
 integration mechanism.
 
 The paragraph is the **same** in every component README — it's the
-single source of truth for how the components relate to KeenMate
+single source of truth for how the components relate to Keenmate
 and to Pure Admin. Today's components carry contradictory and
-factually wrong claims ("Created by KeenMate as part of the Pure
+factually wrong claims ("Created by Keenmate as part of the Pure
 Admin design system" / "Extracted from the Pure Admin design
 system"); this check forces convergence on the canonical text.
 
@@ -396,7 +396,7 @@ system"); this check forces convergence on the canonical text.
 grep -E "^## (About|Credits)" packages/<component>/README.md
 
 # Author attribution
-grep -iE "KeenMate" packages/<component>/README.md
+grep -iE "Keenmate" packages/<component>/README.md
 
 # Pure Admin reference (link or prose)
 grep -iE "Pure Admin|pureadmin" packages/<component>/README.md
@@ -412,14 +412,14 @@ All five greps must match. The auto-script bundles them and reports
 which token is missing if any fail.
 
 **Pass:** The README contains a `## About` (or `## Credits` during
-transition) section that mentions KeenMate, Pure Admin, the word
+transition) section that mentions Keenmate, Pure Admin, the word
 "standalone", and the `--base-*` taxonomy. Components adopting the
 canonical text verbatim pass automatically.
 
 **Failure mode:** Each component invents its own attribution wording.
 Some claim Pure Admin extraction (wrong), some omit Pure Admin
 entirely (no signal to consumers about the auto-theming), some
-omit KeenMate (no author attribution). Consumers reading two
+omit Keenmate (no author attribution). Consumers reading two
 component READMEs side-by-side get conflicting stories about the
 relationship between the components and Pure Admin.
 
@@ -429,7 +429,7 @@ move is to rename to `## About` when next touching the README; the
 canonical-layout table in [readme-structure.md](./readme-structure.md)
 puts `About` between Browser support and Built with BlissFramework.
 
-**Exception:** White-label / fork builds may replace KeenMate +
+**Exception:** White-label / fork builds may replace Keenmate +
 Pure Admin references with brand-equivalent equivalents — document
 the deviation in `VALIDATION-NOTES.md` under a
 `## C-RS-15 — white-label attribution` heading.
@@ -525,6 +525,6 @@ confirm the CHANGELOG link has moved to "Demos & docs" instead.
 [ ] C-RS-12 [semi]   docs/examples.md has at least one worked example beyond the README quick start
 [ ] C-RS-13 [semi]   docs/accessibility.md covers keyboard + ARIA + focus (N/A if D-RS-2 = B)
 [ ] C-RS-14 [auto]   README acknowledges BlissFramework guidelines + links to blissframework.dev
-[ ] C-RS-15 [auto]   README has canonical ## About paragraph (KeenMate + Pure Admin + standalone + --base-*)
+[ ] C-RS-15 [auto]   README has canonical ## About paragraph (Keenmate + Pure Admin + standalone + --base-*)
 [ ] C-RS-16 [auto]   ## What's New in vX.Y.Z sections follow canonical format (1–2 sections, `- **…** — …` bullets, no sub-headers)
 ```

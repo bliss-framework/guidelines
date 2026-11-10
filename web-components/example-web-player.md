@@ -180,7 +180,7 @@ unique to web-player: 2 (`progress.css`, `volume.css`).
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/keenmate/schemas/main/component-variables.schema.json",
+  "$schema": "https://schemas.keenmate.dev/component-variables/v1.schema.json",
   "component": "@keenmate/web-player",
   "prefix": "wp",
   "baseVariables": [
@@ -374,47 +374,20 @@ unique to web-player: 2 (`progress.css`, `volume.css`).
 
 ```css
 /* ==============================================================================
-   DARK MODE / LIGHT MODE SUPPORT
+   DARK MODE / LIGHT MODE — the canonical block (guidelines/web-components/color-scheme.md)
    ==============================================================================
-   See guidelines/web-components/color-scheme.md for the full taxonomy of
-   signals. This file handles signal #4 (framework theme classes) — light-dark()
-   in _variables.css handles signals #1 / #3.
-*/
-@media (prefers-color-scheme: dark) {
-  :host {
-    --wp-bg:                #1a1a1a;
-    --wp-text:              #f5f5f5;
-    --wp-text-muted:        #a3a3a3;
-    --wp-control-bg:        #2b2b2b;
-    --wp-progress-bar-bg:   #3d3d3d;
-  }
-}
+   Every --wp-* color in variables.css is a light-dark() pair, so this file only flips
+   color-scheme. Core detects the page / theme-source signal and writes data-context-theme
+   on the host; data-theme on the host is the per-instance switch, declared last so it wins.
+   No :host-context(), no prefers-color-scheme: with no signal the player inherits the
+   page's color-scheme (the OS applies when the page declares color-scheme: light dark). */
+/* Page / theme-source signal — core writes data-context-theme on the host */
+:host([data-context-theme="dark"])  { color-scheme: dark; }
+:host([data-context-theme="light"]) { color-scheme: light; }
 
-/* Framework theme classes — Bootstrap, Tailwind, generic data-theme */
-:host([data-theme="dark"]),
-:host-context([data-theme="dark"]),
-:host([data-bs-theme="dark"]),
-:host-context([data-bs-theme="dark"]),
-:host-context(.dark) {
-  --wp-bg:                #1a1a1a;
-  --wp-text:              #f5f5f5;
-  --wp-text-muted:        #a3a3a3;
-  --wp-control-bg:        #2b2b2b;
-  --wp-progress-bar-bg:   #3d3d3d;
-}
-
-/* Explicit LIGHT override — for forcing light on a dark page */
-:host([data-theme="light"]),
-:host-context([data-theme="light"]),
-:host([data-bs-theme="light"]),
-:host-context([data-bs-theme="light"]),
-:host-context(.light) {
-  --wp-bg:              var(--base-main-bg, #ffffff);
-  --wp-text:            var(--base-text-color-1, #242424);
-  --wp-text-muted:      var(--base-text-color-3, #707070);
-  --wp-control-bg:      var(--base-elevated-bg, #f5f5f5);
-  --wp-progress-bar-bg: var(--base-elevated-bg, #e0e0e0);
-}
+/* Per-instance attribute — declared last, wins */
+:host([data-theme="dark"])  { color-scheme: dark; }
+:host([data-theme="light"]) { color-scheme: light; }
 ```
 
 ---
@@ -675,7 +648,7 @@ For the complete list, see [`component-variables.manifest.json`](./component-var
 
 ### Component-specific variables
 
-For component-level overrides (not affecting other KeenMate components), use
+For component-level overrides (not affecting other Keenmate components), use
 the `--wp-*` namespace. For example:
 
 ```css

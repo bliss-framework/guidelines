@@ -8,6 +8,153 @@ Categories used: **Added**, **Changed**, **Removed**, **Fixed**.
 
 ---
 
+## 2026-11-10
+
+### Changed
+
+- **color-scheme.md rewritten to the core theme model.** Core detects the page / `theme-source`
+  signal once per page and writes `data-context-theme` on every host; a web component carries
+  exactly the four canonical rules (`:host([data-context-theme="dark"|"light"])`, then
+  `:host([data-theme="dark"|"light"])`, each flipping `color-scheme`) and `light-dark()` colors.
+  `:host-context()` (no Firefox support), `prefers-color-scheme` and Strategy A are gone; the
+  precedence table, the floating-layer rule (shadow root, or `inheritThemeFrom`), the example-page
+  "Auto" rule and four new anti-patterns (portaled date editor, two per-instance switches, a demo
+  card following the OS, stale docs) are in. Decisions D-CS-1 / 2 / 3 / 7 are marked decided.
+  Sibling docs aligned: theme-container.md / .checks.md / .decisions.md, README.md,
+  css-structure.md, example-web-player.md (its sample `dark-mode.css` is the canonical block).
+- **`data-theme` is the only per-instance theme switch** (D-CS-3): not `data-bs-theme` on the
+  host, no `theme` attribute, no class.
+
+### Added
+
+- **C-CS-3 is now `[auto]`: the canonical theme block** — all four rules present, per-instance
+  after context, in one file (a selector list with an inner container passes).
+- **C-CS-11 `[auto]`: no retired theme mechanisms** — `:host-context(`, `prefers-color-scheme`,
+  `:host([data-bs-theme` / `:host([theme` / `:host(.dark|.light)` in CSS (comments stripped), or
+  `matchMedia(…prefers-color-scheme…)` in sources (tests excluded). Both skip Svelte components.
+
+---
+
+## 2026-11-09
+
+### Added
+
+- **Input variables** (base-variables.md → "The manifest file" → "Input variables"). A
+  public `--<prefix>-*` variable that must stay unset — so it falls through to core's
+  page-wide `--km-*` layer (`--_km-menu-bg: var(--wtv-context-menu-bg)`) or to another
+  variable in a fallback chain — is marked `"input": true` in the manifest instead of being
+  declared on `:host`. A `--base-*` read only by a core module rendered in the component
+  (core's menu reads `--base-dropdown-*`) is marked `"readBy": "@keenmate/web-components-core"`.
+
+### Changed
+
+- **The manifest's `$schema` is `https://schemas.keenmate.dev/component-variables/v1.schema.json`**
+  (base-variables.md, example-web-player.md). The old raw-GitHub URL was a placeholder that
+  never resolved; the schema is now served from the KeenMate/schemas repo and carries `input` /
+  `readBy`. The "publish the schema" open question is closed.
+
+### Fixed
+
+- **The naming suite runs on libraries.** `naming-conventions.checks.sh` exited 2 ("could not
+  detect web-component or Svelte component") on any package without a custom element, so a
+  published headless store (`web-dropzone-core`) never had its callback / boolean / type names
+  checked, and web-components-core passed the gate only thanks to its demo elements. A package
+  with TypeScript sources and no element is now a **library**: C-NC-3/4/6/9/11/13 run,
+  C-NC-1/2 are N/A. A package with no TypeScript at all (base-css-variables) reports "nothing to
+  check" and exits 0.
+- **C-BV-3 / C-BV-6** accept the two markers: an `"input"` entry must be read somewhere in
+  the CSS rather than declared; a `"readBy"` base entry isn't looked for in `variables.css`.
+  They used to report every such variable as undeclared or as a phantom manifest entry
+  (web-treeview 25 + 30, web-multiselect 12, web-daterangepicker 1).
+- **C-BV-1 / C-CSS-8** skip relative colour syntax whose origin is a variable
+  (`rgb(from var(--wtv-drop-glow-before-color) r g b)`, also `hsl` / `hwb` / `lab` / `lch` /
+  `oklab` / `oklch` / `color`). It has no literal; it was counted as a hardcoded colour.
+
+---
+
+## 2026-11-07
+
+### Changed
+
+- **A message's kind is `variant`, with the contract's role names** (naming-conventions.md
+  D-NC-23). `showMessage(content, { variant?: MessageVariant })`, where `MessageVariant` is
+  `'info' | 'success' | 'warning' | 'danger'`. It replaces `type` with `'error'`. These are
+  the status roles of the `--base-*` contract and pure-admin's toast variants
+  (`toast.show({ variant: 'danger' })`), so the message, its CSS modifier and its variables
+  use the same word as the colours they read. The old `MessageType` also broke C-NC-11's
+  suffix set. Affected: web-multiselect, web-daterangepicker.
+
+### Added
+
+- **C-NC-13 [auto]** — a component with `showMessage()` must not declare the message kind as
+  `type` / `severity` / `level` / `kind` of a `Message*` type, or use `'error'` in a status
+  union. Skipped when the component shows no messages.
+
+---
+
+## 2026-11-04
+
+### Changed
+
+- **`render*Callback` content providers are callbacks, not events** (naming-conventions.md,
+  C-NC-4). A function that writes its result into the element the component passes
+  (`renderNodeCallback` filling `ctx.containerElement`) has its result used, even when typed
+  `=> void`. `.checks.sh` exempts `render*Callback` and any `*Callback` taking an `HTMLElement`.
+- **D-RO-3 option C: no breakpoint, core's `resolvePresentation`** (responsive-overlay). The device
+  class picks the phone presentation in JS; C-RO-2 passes for such a component and doesn't count
+  its layout-tier `max-width` queries.
+
+### Fixed
+
+- **C-NC-4 (`naming-conventions.checks.sh`)** reads each field's own name, so
+  `NodeRenderCallbackContext` no longer reports an `odeRenderCallback`, and reads the return type
+  after the parameter list's own `)`, so a returned cleanup (`=> () => void`) isn't `=> void`.
+- **C-NC-3** skips `name: boolean` lines inside an open `(`: a parameter of a signature that spans
+  lines (`beforeCheckboxToggleCallback(node, checked: boolean, …)`) is not a field.
+- **C-TC-1 (`theme-container.checks.sh`)** strips `/* … */` before matching, so a `:root { … }`
+  usage example in a header comment is not a block, and scans each block to its own closing `}`
+  instead of 30 lines (a long leading comment hid a real `:host, :root` block).
+- **C-RO-1 gate (`responsive-overlay.checks.sh`)**: plain `position: absolute|fixed`,
+  `getBoundingClientRect` and `matchMedia` no longer mean "opens a panel" (tooltips, drag ghosts and
+  `::after { inset: 0 }` tripped it). The signals are a panel-named class, `computePosition`,
+  `resolvePresentation`, the Popover API, `<dialog>` and a dialog / listbox role.
+- **C-RO-2** counts only the literal after `max-width:`, not the `min-width` of a range query.
+
+## 2026-11-02
+
+### Added
+
+- **New triad: `core-adoption`** (`core-adoption.md` / `.decisions.md` / `.checks.md` /
+  `.checks.sh`) — what a web component takes from `@keenmate/web-components-core` instead of
+  writing its own: `BlissElement` + `static inputs`, `toBool` modes (`'presence'` only for
+  `disabled` / `readonly`) and dead row defaults, before-callbacks through `runBeforeCallback*`,
+  `/actions` / `/menu` / `/positioning`, `renderLoader`, `/search`, logging, forms, and
+  **scrolling inner elements with `scrollIntoContainer()` — plus `beforeScrollCallback` for a
+  component that scrolls on its own** (D-CA-5, C-CA-6). e2e on `test/` fixtures, svelte parity
+  copies in `docs/parity.md`. 10 decisions (D-CA-1…10), 13 checks (7 auto / 5 semi / 1 manual);
+  the script runs the auto ones (monorepo: pass the package folder).
+- README: index row, reading order (after `color-scheme.md`), a "Core adoption" block in the
+  mandatory checklist, tier totals 145.
+
+### Changed
+
+- README checklist: the "one `ATTRIBUTE_TABLE` constant" item now points at core's `static inputs`
+  table (the components moved to `BlissElement`).
+
+## 2026-10-12
+
+### Changed
+
+- **Company name spelling: `Keenmate s.r.o.` (legal) / `Keenmate` (short),
+  never "KeenMate".** The canonical `## About` paragraph
+  (`readme-structure.md`) now reads "Authored and maintained by
+  [Keenmate s.r.o.](https://keenmate.com/)"; every other prose mention
+  across the rulebook, the `.checks.sh` messages and the `/validate-*`
+  commands is "Keenmate". C-RS-15 still matches the name
+  case-insensitively, so existing READMEs keep passing. Lowercase
+  `keenmate` in npm scopes and URLs is unchanged; older entries below
+  keep the spelling they were written with.
+
 ## 2026-06-28
 
 ### Changed

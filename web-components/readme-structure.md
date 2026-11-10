@@ -1,6 +1,6 @@
 # README Structure — Component Documentation Layout
 
-How a KeenMate component library documents itself externally: what
+How a Keenmate component library documents itself externally: what
 lives in the npm-landing-page README, what gets pushed into the
 `docs/` folder, what each `docs/` file owns.
 
@@ -84,7 +84,7 @@ Exactly these sections, in this order:
 | Install | `npm install …` (and CDN if applicable) | < 10 lines |
 | Quick start | Minimum viable code snippet + 1-paragraph explanation | < 30 lines |
 | Browser / framework support | Short list or table | < 10 lines |
-| About | Canonical KeenMate authorship + Pure Admin / Theme Designer auto-theming statement — the same paragraph in every component README. See [`## About` — canonical text](#about--canonical-text) below. | 4–8 lines |
+| About | Canonical Keenmate authorship + Pure Admin / Theme Designer auto-theming statement — the same paragraph in every component README. See [`## About` — canonical text](#about--canonical-text) below. | 4–8 lines |
 | Built with BlissFramework | One-line attribution + link to [`blissframework.dev`](https://blissframework.dev/) — the guidelines this component follows | 1–3 lines |
 | License | One-line mention + link to `LICENSE` | < 5 lines |
 
@@ -116,7 +116,7 @@ relative `LICENSE` link if needed.
 ```markdown
 ## About
 
-Authored and maintained by [KeenMate](https://keenmate.com/).
+Authored and maintained by [Keenmate s.r.o.](https://keenmate.com/).
 The component ships standalone with sensible light/dark defaults;
 when mounted inside [Pure Admin](https://pureadmin.io/) — or any
 host that publishes the `--base-*` taxonomy via
@@ -129,17 +129,17 @@ variables.
 ### Why exactly this text
 
 Today's component READMEs say different things — `web-multiselect`'s
-"Credits" line claims the component is "Created by KeenMate as part
+"Credits" line claims the component is "Created by Keenmate as part
 of the Pure Admin design system", `web-daterangepicker`'s says
 "Extracted from the Pure Admin design system". Both are factually
 wrong: the components live independently of Pure Admin, they were
-not extracted from it, and several KeenMate components predate the
+not extracted from it, and several Keenmate components predate the
 Pure Admin integration entirely.
 
 The canonical text fixes four things in one paragraph:
 
 1. **Authorship is unambiguous** — "Authored and maintained by
-   KeenMate". No "as part of", no "extracted from".
+   Keenmate s.r.o.". No "as part of", no "extracted from".
 2. **Standalone is the default** — every component renders with
    bundled light/dark defaults on a plain page. Consumers who don't
    want Pure Admin or Theme Designer don't have to load anything
@@ -173,7 +173,7 @@ isn't a hard gate, but new components and rewrites use
 ### What the section is *not*
 
 - Not a "Credits" list of third-party libraries or contributors.
-  Those (rarely needed for KeenMate components) belong in a
+  Those (rarely needed for Keenmate components) belong in a
   `## Acknowledgements` section if they exist at all.
 - Not the BlissFramework attribution. That's a separate section
   (`## Built with BlissFramework`) enforced by C-RS-14, with its
@@ -507,7 +507,7 @@ shipped.
 
 ## About
 
-Authored and maintained by [KeenMate](https://keenmate.com/).
+Authored and maintained by [Keenmate s.r.o.](https://keenmate.com/).
 The component ships standalone with sensible light/dark defaults;
 when mounted inside [Pure Admin](https://pureadmin.io/) — or any
 host that publishes the `--base-*` taxonomy via

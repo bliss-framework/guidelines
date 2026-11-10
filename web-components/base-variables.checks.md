@@ -35,7 +35,9 @@ grep -nE "(background|color|border|box-shadow|fill|stroke):\s*(#[0-9a-f]|rgb)" \
 
 **Pass:** Empty output (or only matches inside comments / inside `:host`
 blocks). Every visible color in `_base.css`, `_dropdown.css`, etc. consumes
-`var(--...)`.
+`var(--...)`. Relative colour syntax whose origin is a variable —
+`rgb(from var(--wtv-drop-glow-color) r g b)`, same for `hsl` / `hwb` / `lab` /
+`lch` / `oklab` / `oklch` / `color` — has no literal and passes.
 
 **Failure mode:** Theme overrides don't reach the element. A consumer sets
 `--base-main-bg` and one element stays the wrong color.
@@ -113,7 +115,9 @@ diff /tmp/consumed.txt /tmp/defined.txt
 
 **Pass:** Every consumed variable is in the defined list. Variables defined
 but not consumed are fine (provides forward compatibility) but should be
-documented in the manifest.
+documented in the manifest. Exempt: reads with a fallback chain, and
+variables marked `"input": true` in the manifest — they are unset by design
+(base-variables.md → "Input variables").
 
 **Failure mode:** A consumer can't override a property because the variable
 isn't there to override. The "themeable" knob is fictional.
@@ -122,7 +126,7 @@ isn't there to override. The "themeable" knob is fictional.
 
 ## C-BV-4 — Component prefix is unique and reserved
 
-**Tier:** `[semi]` — grep the prefix table is mechanical; cross-checking against other KeenMate repos requires knowing where to look
+**Tier:** `[semi]` — grep the prefix table is mechanical; cross-checking against other Keenmate repos requires knowing where to look
 
 **What:** The prefix picked in D-BV-1 is reserved in
 [base-variables.md](./base-variables.md) → "Component prefix convention" and
@@ -130,7 +134,7 @@ isn't already used by another component.
 
 **How to verify:** Open `base-variables.md` and find the prefix table. The
 new prefix should be there with the component name. Cross-check by searching
-the repo (or all KeenMate repos) for stray uses.
+the repo (or all Keenmate repos) for stray uses.
 
 **Pass:** Prefix is listed, no collisions found.
 
@@ -171,6 +175,15 @@ generation tooling skips it.
 **What:** Every `--base-*` listed in `baseVariables` is actually read in the
 component's CSS. Every `--<prefix>-*` listed in `componentVariables` is
 actually defined on `:host`. No phantom entries, no missing entries.
+
+Two markers change what "matches" means (base-variables.md → "Input
+variables"):
+
+- `componentVariables` entry with `"input": true` — must be **read**
+  (`var(--name,` or `var(--name)`) in some CSS file instead of declared.
+- `baseVariables` entry with `"readBy": "<package>"` — read by a core module
+  the component renders, not by the component's CSS; not looked for in
+  `variables.css`.
 
 **How to verify:** (rough automation)
 ```bash
@@ -452,7 +465,7 @@ For each tooltip rule:
 resolves through a `--base-tooltip-*` chain. The manifest is
 complete.
 
-**Failure mode:** Two KeenMate components mounted on the same page
+**Failure mode:** Two Keenmate components mounted on the same page
 render tooltips with visibly different padding / font / corner radius
 / shadow, and a designer setting `--base-tooltip-padding-inline: 1.4`
 on `:root` doesn't change either component because neither one reads

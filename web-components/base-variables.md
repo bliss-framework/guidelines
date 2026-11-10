@@ -26,7 +26,7 @@ short answer: on the component's container — `:host` for web-components,
 
 ## Why a separate `--base-*` taxonomy?
 
-A KeenMate page might mount four custom-element libraries simultaneously
+A Keenmate page might mount four custom-element libraries simultaneously
 (web-grid, web-multiselect, web-daterangepicker, web-player). Without a shared
 taxonomy, theming the page means setting:
 
@@ -236,7 +236,7 @@ Font sizes are unitless multipliers, intended to be applied via
 | `--base-input-size-xl-height` | XL input variant height — landing-page CTAs. | `4.1` (≈ 41px) |
 
 Same multiplier convention as font sizes. The five-tier input-height scale
-is the canonical sizing axis for form-control components — KeenMate's Theme
+is the canonical sizing axis for form-control components — Keenmate's Theme
 Designer publishes one set of heights and every consuming component
 (multiselect, daterangepicker, future combobox, …) reads through the same
 variables for cross-component visual consistency. **Components with input
@@ -336,8 +336,22 @@ Pick once, use everywhere. Existing prefixes:
 | `@keenmate/web-daterangepicker` | `drp` | `--drp-day-cell-bg` |
 | `@keenmate/web-player` | `wp` | `--wp-control-bg` |
 | `@keenmate/web-treeview` | `wtv` | `--wtv-node-bg` |
+| `@keenmate/web-editor` | `we` | `--we-context-menu-bg` |
 | `@keenmate/svelte-treeview` | `stv` | `--stv-node-hover-bg` |
 | `@keenmate/svelte-switch` | `sw` | `--sw-track-bg` |
+| *Shared UI rendered by `@keenmate/web-components-core`* (menu, future tooltip …) | `km` | `--km-menu-bg`, `.km-menu__item` |
+
+`km-` is **reserved for shared UI rendered by `@keenmate/web-components-core`**
+(the `/menu` context / dropdown menu today; a future tooltip etc.). It is not
+a component prefix and is not produced by the derivation algorithm — never
+give a component `km`. Its variables resolve in three layers — component
+(one instance) → `--km-*` (every menu on the page) → `--base-*` (theme):
+core reads `var(--_km-menu-x, var(--km-menu-x, var(--base-…, <default>)))`.
+A component fills **only the private layer**, with no fallback, and never sets
+`--km-*` itself (that would shadow a page-level `--km-*` on `:root`):
+`:host { --_km-menu-bg: var(--wtv-context-menu-bg); }` — unset component
+variable → guaranteed-invalid → falls through to `--km-menu-bg`, then base.
+The `--km-*` set is listed in core's `component-variables.manifest.json`.
 
 **Rules:**
 
@@ -381,7 +395,7 @@ Avoid generic spacing/color variables in the consumed CSS rules.
 1. **Self-documenting.** The variable name explains what it controls.
 2. **Targeted overrides.** Consumers can change one thing without affecting
    others. Changing `--wp-progress-bar-height` shouldn't also resize buttons.
-3. **Consistent across components.** Every KeenMate component follows this
+3. **Consistent across components.** Every Keenmate component follows this
    pattern, so consumers know what to look for.
 
 ### Suffix conventions
@@ -423,7 +437,7 @@ tooling) read this to know what knobs exist.
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/keenmate/schemas/main/component-variables.schema.json",
+  "$schema": "https://schemas.keenmate.dev/component-variables/v1.schema.json",
   "component": "@keenmate/web-player",
   "prefix": "wp",
   "baseVariables": [
@@ -469,6 +483,44 @@ tooling) read this to know what knobs exist.
   organize generated docs/tooling. Pick from existing categories where
   possible (`accent`, `text`, `surface`, `border`, `input`, `state`,
   `typography`, `radius`, `spacing`, plus component-specific ones).
+
+`$schema` is `https://schemas.keenmate.dev/component-variables/v1.schema.json`
+(source: the KeenMate/schemas repo). Editors validate and autocomplete the
+manifest against it. A new optional field goes into `v1` in place; a breaking
+change publishes `v2` and the manifests move to it.
+
+### Input variables — read, never declared
+
+Some public variables must stay **unset by default**, because an unset
+variable is what lets the value fall through to something else. Two shapes:
+
+- **Pass-through to shared core UI.** The component forwards its variable to
+  core's private layer with no fallback —
+  `:host { --_km-menu-bg: var(--wtv-context-menu-bg); }`. Unset, it is
+  guaranteed-invalid, so core's chain continues to `--km-menu-bg` (every menu
+  on the page), then `--base-dropdown-bg`, then core's default (see
+  "Component prefix convention" → `km-`). Declaring `--wtv-context-menu-bg` on
+  `:host` would fill the slot and cut the page-wide and theme layers off.
+- **Optional override with a fallback.** A rule reads
+  `var(--ms-option-color-selected-focused, var(--ms-option-color-selected))`.
+  Unset, it follows the other variable; a declared default would stop that.
+
+Mark such an entry `"input": true` in `componentVariables`. The checks then
+require it to be **read** somewhere in the CSS instead of declared on the
+container (C-BV-3, C-BV-6). Its `usage` says what it falls back to when unset.
+
+A `--base-*` variable that the component does not read itself, but that a
+core module rendered inside its shadow root reads (core's menu reads
+`--base-dropdown-*`), is still listed — theme designers need to know it
+affects this component — and marked `"readBy": "@keenmate/web-components-core"`.
+C-BV-6 then doesn't look for it in `variables.css`.
+
+```json
+{ "name": "wtv-context-menu-bg", "category": "context-menu", "input": true,
+  "usage": "Menu background (unset: --km-menu-bg, then --base-dropdown-bg)" }
+{ "name": "base-dropdown-bg", "required": false,
+  "readBy": "@keenmate/web-components-core", "usage": "Context menu background" }
+```
 
 ### When to update the manifest
 
@@ -577,5 +629,3 @@ If yes to all three, the steps are:
 - Should `--base-z-index-*` exist? Currently each component owns its own
   z-index scale, which is fine because z-index is layout-scope, not
   theme-scope. Probably no.
-- Schema validation for `component-variables.manifest.json` — the `$schema`
-  URL is a placeholder; need to publish the actual JSON schema.

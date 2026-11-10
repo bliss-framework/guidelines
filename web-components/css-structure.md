@@ -474,10 +474,10 @@ See [base-variables.md](./base-variables.md) for the *content* rules. Structure-
 Everything related to detecting dark mode that isn't a `light-dark()`
 fallback in `variables.css`:
 
-- `@media (prefers-color-scheme: dark)` block
-- `:host([data-theme="dark"])` and `:host-context([data-theme="dark"])`
-- Bootstrap `[data-bs-theme]` and Tailwind `.dark` selectors
-- Symmetric `light` selectors so consumers can force light on a dark page
+- web components: the four canonical rules — `:host([data-context-theme="dark"|"light"])`
+  (core's page / `theme-source` signal), then `:host([data-theme="dark"|"light"])` (per instance)
+- Svelte: the container rules from theme-container.md
+- Symmetric `light` rules so consumers can force light on a dark page
 
 The variable overrides inside these selectors mirror the dark branch of
 `light-dark()` in `variables.css`. Keep them in sync — if you change a dark

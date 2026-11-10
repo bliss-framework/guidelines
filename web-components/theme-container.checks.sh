@@ -52,7 +52,7 @@ if [[ -d "$TARGET/src/lib/components" ]] && \
 fi
 
 if find "$TARGET/src" -maxdepth 3 -name "*.ts" -print0 2>/dev/null | \
-   xargs -0 grep -lE "customElements\.define" 2>/dev/null | grep -q .; then
+   xargs -0 grep -lE "customElements\.define|registerComponent\(['\"]" 2>/dev/null | grep -q .; then
   IS_WEB_COMPONENT=1
 fi
 
@@ -105,25 +105,44 @@ echo "${C_INFO}== Running [auto] checks ==${C_RESET}"
 # C-TC-1 — No --<prefix>-* on :root / html / body
 # -----------------------------------------------------------------------------
 
+# Comments are stripped first (a `:root { … }` usage example in a header comment
+# is not a block), and each :root/html/body block is read from its `{` to its own
+# closing `}` — however long its leading comment, and never into the next block.
 mapfile -t BAD_ROOT < <(
-  grep -rnE "(^|\s):root\s*\{|^\s*html\s*\{|^\s*body\s*\{" "$CSS_DIR"/*.css 2>/dev/null | \
-    awk -F: '{print $1":"$2}'
+  awk -v prefix="$CSS_PREFIX" '
+    FNR == 1 { inComment = 0; inBlock = 0 }
+    {
+      line = $0; code = ""
+      while (line != "") {
+        if (inComment) {
+          p = index(line, "*/")
+          if (p == 0) { line = ""; break }
+          line = substr(line, p + 2); inComment = 0
+        } else {
+          p = index(line, "/*")
+          if (p == 0) { code = code line; line = ""; break }
+          code = code substr(line, 1, p - 1); line = substr(line, p + 2); inComment = 1
+        }
+      }
+      if (!inBlock && code ~ /(^|[ \t,]):root[ \t]*\{|^[ \t]*html[ \t]*\{|^[ \t]*body[ \t]*\{/) {
+        inBlock = 1; level = 0; isHit = 0; start = FNR
+      }
+      if (!inBlock) next
+      if (code ~ ("(^|[{;])[ \t]*--" prefix "-[a-z][a-z0-9-]*[ \t]*:")) isHit = 1
+      level += gsub(/\{/, "{", code) - gsub(/\}/, "}", code)
+      if (level <= 0) {
+        if (isHit) print FILENAME ":" start
+        inBlock = 0
+      }
+    }
+  ' "$CSS_DIR"/*.css 2>/dev/null
 )
 
-# For each :root/html/body block found, scan the next 30 lines for --<prefix>-* declarations.
 HIT_COUNT=0
 HIT_DETAILS=""
 for entry in "${BAD_ROOT[@]}"; do
-  file="${entry%:*}"
-  lineno="${entry##*:}"
-  [[ -z "$lineno" ]] && continue
-  # Read 30 lines starting at the matched line
-  block=$(awk -v start="$lineno" -v end=$((lineno+30)) 'NR>=start && NR<=end' "$file" 2>/dev/null)
-  # Check for --<prefix>-* declarations in this slice
-  if echo "$block" | grep -qE "^\s*--${CSS_PREFIX}-[a-z][a-z0-9-]*:"; then
-    HIT_COUNT=$((HIT_COUNT+1))
-    HIT_DETAILS="${HIT_DETAILS}        $file:$lineno (--${CSS_PREFIX}-* in root/html/body block)\n"
-  fi
+  HIT_COUNT=$((HIT_COUNT+1))
+  HIT_DETAILS="${HIT_DETAILS}        $entry (--${CSS_PREFIX}-* in root/html/body block)\n"
 done
 
 if [[ "$HIT_COUNT" -eq 0 ]]; then
@@ -232,7 +251,7 @@ if [[ "$IS_WEB_COMPONENT" -eq 1 ]]; then
     NOT_DEFINED_TAGS=$(grep -hEo "^\s*[a-z][a-z0-9-]+\s*:not\(:defined\)" "$BASE" 2>/dev/null | \
                        grep -oE "^[a-z][a-z0-9-]+" | sort -u)
     # Registered tag(s) from TS source
-    DEFINED_TAGS=$(grep -rhE "customElements\.define\(['\"][^'\"]+" "$TARGET/src" 2>/dev/null | \
+    DEFINED_TAGS=$(grep -rhE "(customElements\.define|registerComponent)\(['\"][^'\"]+" "$TARGET/src" 2>/dev/null | \
                    grep -oE "['\"][^'\"]+['\"]" | tr -d "'\"" | sort -u)
 
     if [[ -z "$NOT_DEFINED_TAGS" ]]; then

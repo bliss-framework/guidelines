@@ -64,7 +64,7 @@ if [[ -d "$TARGET/src/lib/components" ]] && \
 fi
 
 if find "$TARGET/src" -maxdepth 3 -name "*.ts" -print0 2>/dev/null | \
-   xargs -0 grep -lE "customElements\.define" 2>/dev/null | grep -q .; then
+   xargs -0 grep -lE "customElements\.define|registerComponent\(['\"]" 2>/dev/null | grep -q .; then
   IS_WEB_COMPONENT=1
 fi
 
@@ -105,7 +105,7 @@ fi
 # -----------------------------------------------------------------------------
 
 if [[ "$IS_WEB_COMPONENT" -eq 1 ]]; then
-  TAGS=$(grep -rhE "customElements\.define\(['\"][^'\"]+" "$TARGET/src" 2>/dev/null | \
+  TAGS=$(grep -rhE "(customElements\.define|registerComponent)\(['\"][^'\"]+" "$TARGET/src" 2>/dev/null | \
          grep -oE "['\"][^'\"]+['\"]" | head -1 | tr -d "'\"")
   if [[ -z "$TAGS" ]]; then
     record_fail "C-CST-2" "no customElements.define call found"

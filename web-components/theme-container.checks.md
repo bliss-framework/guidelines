@@ -35,6 +35,11 @@ grep -nE "--<prefix>-[a-z-]+:" src/css/*.css \
   | grep -E "(:root|^\s*html|^\s*body)"
 ```
 
+Read each hit from its `{` to its own closing `}`. A `:root { … }` inside
+a `/* … */` comment (a usage example in a header) is not a block.
+`.checks.sh` strips comments first and scans each block to its closing
+brace, however long the comment before its first declaration.
+
 **Pass:** No `--<prefix>-*` declarations under `:root`, `html`, or
 `body`. (Web-components with portaled UI may declare on `:host, :root`
 under D-TC-7 option C — that's an exception, document it.)
@@ -135,10 +140,10 @@ A bare declaration shadows the page's inherited `color-scheme` for
 *every* instance and breaks dark mode inheritance.
 
 **Conditional declarations are explicitly allowed** — and are the
-recommended "Strategy B" pattern in
+canonical pattern in
 [color-scheme.md](./color-scheme.md). Selectors like
-`:host([data-theme="dark"])`, `:host-context([data-bs-theme="dark"])`,
-`.<prefix>-container[data-theme="dark"]`, or
+`:host([data-context-theme="dark"])`, `:host([data-theme="dark"])`,
+`.<prefix>-container[data-theme="dark"]` (Svelte), or
 `[data-theme="dark"] .<prefix>-container` fire only when the consumer
 has explicitly signalled their theme intent. Setting
 `color-scheme: dark` inside such a block *amplifies* the consumer's
@@ -157,7 +162,7 @@ For every match, classify it:
 | `:host { color-scheme: ... }` (bare) | ❌ Fail |
 | `.<prefix>-container { color-scheme: ... }` (bare) | ❌ Fail |
 | `:host([attr]) { color-scheme: ... }` | ✅ Conditional — pass |
-| `:host-context(...) { color-scheme: ... }` | ✅ Conditional — pass |
+| `:host-context(...) { color-scheme: ... }` | ❌ Fail — retired (color-scheme C-CS-11) |
 | `.<prefix>-container[attr] { color-scheme: ... }` | ✅ Conditional — pass |
 | `[ancestor-attr] .<prefix>-container { color-scheme: ... }` | ✅ Conditional — pass |
 | Inside `@media` query | ✅ Pass |
@@ -173,11 +178,9 @@ page even when `body { color-scheme: dark }` is set. Duplicates
 passes the other.
 
 **Worked example (passing):** `@keenmate/web-multiselect`
-`src/css/dark-mode.css` declares `color-scheme: dark` on five
-conditional selectors (`:host([data-theme="dark"])`,
-`:host-context([data-theme="dark"])`,
-`:host-context([data-bs-theme="dark"])`, `:host-context(.dark)`,
-plus light counterparts). The bare `:host` block in
+`src/css/dark-mode.css` declares `color-scheme` on the four canonical
+conditional selectors (`:host([data-context-theme="dark"|"light"])`, then
+`:host([data-theme="dark"|"light"])`). The bare `:host` block in
 `src/css/variables.css` carries a long explanatory comment about *why*
 it doesn't declare `color-scheme` there.
 
@@ -223,8 +226,8 @@ container, not on descendants or arbitrary scopes.
 
 **How to verify:** Open `dark-mode.css`. Each block should be one of:
 
-- `@media (prefers-color-scheme: dark) { <container> { … } }`
-- `:host-context(…), :host([…]) { … }` (web-component)
+- `:host([data-context-theme="…"])` / `:host([data-theme="…"])` (web component — the canonical four)
+- `@media (prefers-color-scheme: dark) { .<prefix>-container { … } }` (Svelte only)
 - `[…] .<prefix>-container, .<prefix>-container[…] { … }` (Svelte)
 
 There should be no `.<prefix>__button[data-theme="dark"]` or

@@ -1,6 +1,6 @@
 # Component Intake — Guideline
 
-Pre-flight rules for **starting a new component** in the KeenMate /
+Pre-flight rules for **starting a new component** in the Keenmate /
 Bliss ecosystem. Three decisions land before any code is written:
 which technology, which package identity, which CSS prefix.
 
@@ -162,8 +162,14 @@ Current snapshot:
 | `@keenmate/web-daterangepicker` | `drp` |
 | `@keenmate/web-player` | `wp` |
 | `@keenmate/web-treeview` | `wtv` |
+| `@keenmate/web-editor` | `we` |
 | `@keenmate/svelte-treeview` | `stv` |
 | `@keenmate/svelte-switch` | `sw` |
+| *Shared UI rendered by `@keenmate/web-components-core`* (menu, future tooltip …) | `km` |
+
+`km-` is **reserved for shared UI rendered by `@keenmate/web-components-core`**
+— it is not a component prefix and is not derived by the algorithm above.
+A component never takes `km`, even if its name would derive to it.
 
 When adding a new component, **update both this table and the
 authoritative one in `base-variables.md`** — they must stay in sync.
@@ -215,7 +221,11 @@ The intake hands off to the brand-new-component reading order from
 3. [base-variables.md](./base-variables.md) — variable taxonomy, the
    manifest format, the prefix reservation step.
 4. [color-scheme.md](./color-scheme.md) — dark-mode signals.
-5. [example-web-player.md](./example-web-player.md) — worked example.
+5. [custom-elements-manifest.md](./custom-elements-manifest.md) —
+   **web-components only:** the Custom Elements Manifest, editor
+   tooling, and webcomponents.org discoverability (the distribution
+   key). Skip for Svelte / light-DOM components.
+6. [example-web-player.md](./example-web-player.md) — worked example.
 
 The intake decisions feed forward: the chosen technology determines
 which branch of the theme-container guideline applies, the chosen

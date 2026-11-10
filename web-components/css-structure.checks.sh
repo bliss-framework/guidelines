@@ -230,12 +230,15 @@ fi
 # -----------------------------------------------------------------------------
 # C-CSS-8 — No hardcoded colors in feature files
 #   variables.css and dark-mode.css are the only files that may hold literals.
+#   Relative colour syntax from a variable — rgb(from var(--x) r g b) — has no
+#   literal and is skipped.
 # -----------------------------------------------------------------------------
 
 mapfile -t HARDCODED < <(
   grep -nE "(background|color|border|box-shadow|fill|stroke):\s*(#[0-9a-f]|rgb)" \
     "$CSS_DIR"/*.css 2>/dev/null | \
-    grep -vE "/variables\.css:|/dark-mode\.css:"
+    grep -vE "/variables\.css:|/dark-mode\.css:" | \
+    grep -vE ":\s*(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(\s*from\s+var\("
 )
 
 if [[ "${#HARDCODED[@]}" -eq 0 ]]; then

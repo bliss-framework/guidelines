@@ -1,7 +1,7 @@
 # Component Guidelines — Index
 
 This folder contains the project-wide rules for building UI component
-libraries in the Bliss / KeenMate ecosystem — both **web-components**
+libraries in the Bliss / Keenmate ecosystem — both **web-components**
 (custom elements with Shadow DOM, e.g. `@keenmate/web-grid`,
 `@keenmate/web-multiselect`, `@keenmate/web-daterangepicker`,
 `@keenmate/web-player`) and **Svelte components** (light DOM,
@@ -50,7 +50,8 @@ Each check inside a `.checks.md` carries a tier tag right under its heading:
 
 Current tier totals across the checks (CSS structure + theme container
 + base variables + color scheme + component structure + naming
-conventions + readme structure + publish-command):
+conventions + readme structure + custom-elements-manifest +
+responsive-overlay + publish-command + example-pages + core-adoption):
 
 | Triad | auto | semi | manual | total |
 |-------|-----:|-----:|-------:|------:|
@@ -61,10 +62,14 @@ conventions + readme structure + publish-command):
 | component-structure | 7 | 2 | 2 | 11 |
 | naming-conventions | 7 | 4 | 1 | 12 |
 | readme-structure | 8 | 7 | 1 | 16 |
+| custom-elements-manifest | 9 | 3 | 1 | 13 |
+| responsive-overlay | 3 | 9 | 2 | 14 |
 | publish-command | 11 | 0 | 0 | 11 |
-| **Total** | **55** | **31** | **15** | **101** |
+| example-pages | 3 | 0 | 1 | 4 |
+| core-adoption | 7 | 5 | 1 | 13 |
+| **Total** | **77** | **48** | **20** | **145** |
 
-That's roughly 54% auto, 31% semi, 15% manual — most of the rulebook
+That’s roughly 53% auto, 33% semi, 14% manual — most of the rulebook
 *can* be mechanized; the open work is writing the runner script(s).
 
 ## When to consult which file
@@ -73,13 +78,17 @@ That's roughly 54% auto, 31% semi, 15% manual — most of the rulebook
 |-------------|------|
 | Starting a brand-new component (picking technology, package name, CSS prefix) | [component-intake.md](./component-intake.md) — or run `/new-component` for an interactive walkthrough |
 | Setting up or refactoring the component's internal architecture (Element / Logic / Service / Side layer split, file organization, class suffixes, TS interface suffixes) | [component-structure.md](./component-structure.md) → [.decisions](./component-structure.decisions.md) → implement → [.checks](./component-structure.checks.md) |
-| Settling the component's public API names (custom-element tag, HTML attributes, `CustomEvent` names, callback hierarchy, internal method naming, BEM prefix application) | [naming-conventions.md](./naming-conventions.md) → [.decisions](./naming-conventions.decisions.md) → implement → [.checks](./naming-conventions.checks.md) |
+| Settling the component's public API names (custom-element tag, HTML attributes, `CustomEvent` names, callback hierarchy and `before*` contract, contexts + `controller`, action items / menus, verb glossary, state vs `get*()`, boolean key → attribute derivation, disabled / readonly, event shapes, counts, messages, `labels` / i18n, ready / defer / destroy, internal method naming, BEM prefix application) | [naming-conventions.md](./naming-conventions.md) → [.decisions](./naming-conventions.decisions.md) → implement → [.checks](./naming-conventions.checks.md) |
 | Scaffolding a new component's CSS, or refactoring an existing one's structure | [css-structure.md](./css-structure.md) → [.decisions](./css-structure.decisions.md) → implement → [.checks](./css-structure.checks.md) |
 | Choosing or refactoring the component's root container (`:host` for web-components, `.<prefix>-container` for Svelte), wiring per-instance `data-theme`, deciding default background | [theme-container.md](./theme-container.md) → [.decisions](./theme-container.decisions.md) → implement → [.checks](./theme-container.checks.md) |
 | Adding or changing how a component reacts to dark mode | [color-scheme.md](./color-scheme.md) → [.decisions](./color-scheme.decisions.md) → implement → [.checks](./color-scheme.checks.md) |
 | Defining new CSS variables on a component, or wiring `--base-*` hooks | [base-variables.md](./base-variables.md) → [.decisions](./base-variables.decisions.md) → implement → [.checks](./base-variables.checks.md) |
 | Writing or restructuring a component's external documentation (slim README + `docs/` folder) | [readme-structure.md](./readme-structure.md) → [.decisions](./readme-structure.decisions.md) → implement → [.checks](./readme-structure.checks.md) |
+| Making a web-component discoverable — shipping a Custom Elements Manifest (`custom-elements.json`), the `customElements` / `web-types` package.json fields, and editor autocomplete (VS Code / JetBrains) for webcomponents.org listing | [custom-elements-manifest.md](./custom-elements-manifest.md) → [.decisions](./custom-elements-manifest.decisions.md) → implement → [.checks](./custom-elements-manifest.checks.md) *(web-components only)* |
+| Making a component that **opens a floating panel** (dropdown, calendar, autocomplete, menu) present well on phones — phone full-screen vs tablet/desktop anchored, `dvh` sizing, soft-keyboard, touch targets, safe-area insets | [responsive-overlay.md](./responsive-overlay.md) → [.decisions](./responsive-overlay.decisions.md) → implement → [.checks](./responsive-overlay.checks.md) *(panel-opening components only)* |
+| Wiring a web-component's behaviour onto `@keenmate/web-components-core` — `BlissElement` + the `static inputs` table (`toBool` modes, dead defaults), before-callbacks, actions / menus / positioning, loaders, logging, forms, search, **scrolling inner elements into view (`scrollIntoContainer`, `beforeScrollCallback`)**, e2e on `test/` fixtures, svelte parity copies | [core-adoption.md](./core-adoption.md) → [.decisions](./core-adoption.decisions.md) → implement → [.checks](./core-adoption.checks.md) *(web-components; Svelte: parity only)* |
 | Scaffolding or editing a component's `/publish` slash-command (release flow: pre-checks, version resolution, CHANGELOG / README handling, commit) | [publish-command.md](./publish-command.md) → implement → [.checks](./publish-command.checks.md) |
+| Adding or changing examples on a component's example site (`examples-*.html`) — the permanent `TH07`-style section code on every example `<h2>` | [example-pages.md](./example-pages.md) → [.decisions](./example-pages.decisions.md) → implement → [.checks](./example-pages.checks.md) |
 | Looking for a concrete worked example | [example-web-player.md](./example-web-player.md) |
 
 If the task touches more than one topic, read every applicable `.md` before
@@ -91,12 +100,18 @@ every applicable `.checks.md` before declaring done.
 package identity, and CSS prefix. Then read in order:
 `component-structure.md` → `naming-conventions.md` → `css-structure.md`
 → `theme-container.md` → `base-variables.md` → `color-scheme.md` →
-`readme-structure.md` → `example-web-player.md`. The ordering mirrors
+`core-adoption.md` (web-components) → `readme-structure.md` →
+`responsive-overlay.md` (panel-opening components) →
+`example-web-player.md`. The ordering mirrors
 how you'd actually build the component: intake first; then
 architecture (layers / classes / interfaces); then naming (tag /
 attributes / callbacks / events); then CSS (file layout, root
 container scope, variables, dark-mode overrides); then external
-documentation (slim README + `docs/` split).
+documentation (slim README + `docs/` split); then, for web-components,
+distribution (`custom-elements-manifest.md` — the Custom Elements
+Manifest and editor tooling that make the package discoverable). The
+CEM step slots in just before `/publish`, since the manifest is a
+build/pack artifact the release flow ships.
 
 ---
 
@@ -127,17 +142,30 @@ of the component's README.
 - [ ] Custom-element tag agrees with `customElements.define`.
 - [ ] CustomEvent names are bare lowercase strings (`'select'`,
       `'change'`) — no `on*` prefix, no `Event` suffix.
-- [ ] Boolean config fields use `is*` / `should*` / `has*` / `can*`
-      prefix.
+- [ ] Boolean config fields use `is*Shown` / `is*Enabled` / `should*` /
+      `is*` / `has*` / `can*`; attributes are derived mechanically
+      (`show-x`, `enable-x`, `x`, `disabled` / `readonly` / `multiple`)
+      and match the other components for the same concept (D-NC-15).
+- [ ] Events are `<state>-change` (whole new state) or `<domain>-<verb>`,
+      1–2 words; `change` only for the form value (D-NC-18).
 - [ ] Events (return ignored — fire-and-forget) use `on*` and/or a bare
-      `CustomEvent`, on any surface. `*Callback` is **reserved** for
-      functions whose return value the component uses.
+      `CustomEvent`. `on*` is reserved for event twins; `*Callback` is
+      **reserved** for functions whose return value the component uses
+      (plus options-bag notification hooks, D-NC-26).
 - [ ] Callbacks (return consumed): interceptors use `before*Callback`;
-      data extractors use `get*Callback` paired with `*Member`; behavior
-      providers use plain `*Callback`.
-- [ ] One `ATTRIBUTE_TABLE` constant drives `observedAttributes`,
-      initial parsing, and `attributeChangedCallback` (web-components
-      only).
+      data extractors use `get*Callback` paired with a same-stem `*Member`;
+      behavior providers use plain `*Callback`. One `ctx`, never
+      positional.
+- [ ] Public verbs follow the verb glossary (D-NC-13); state is a
+      same-named property on element and controller, `get*()` only for
+      lookups (D-NC-14).
+- [ ] Enum values kebab-case; "off" is `'none'` (D-NC-25); form
+      components have `disabled` + `readonly` (D-NC-16); `name`,
+      `multiple`, `cssClass`, `::part(container)`, `labels` (D-NC-24,
+      D-NC-27).
+- [ ] One input table drives `observedAttributes`, initial parsing,
+      and attribute changes — today core's `static inputs` on
+      `BlissElement` (web-components only; see `core-adoption.md`).
 - [ ] Internal methods use `handle*`; stored listener / callback
       references use `*Handler`.
 - [ ] No magic strings inline — event names, attribute names, log
@@ -163,9 +191,9 @@ of the component's README.
       transparency (inline-style atoms). See D-TC-3 in
       `theme-container.decisions.md`.
 - [ ] No *bare* `color-scheme` declaration on the container.
-      Conditional `color-scheme` on `:host(...)` / `:host-context(...)` /
-      `.<prefix>-container[...]` selectors is fine — see Strategy B in
-      `color-scheme.md`.
+      The conditional canonical rules (`:host([data-context-theme])` /
+      `:host([data-theme])`; Svelte `.<prefix>-container[...]`) are fine — see
+      "The canonical block" in `color-scheme.md`.
 - [ ] `display: block` (or documented `inline-block`) on the container.
 - [ ] `position: relative` on the container — unless every floating
       panel uses `position: fixed` AND in-flow `position: absolute`
@@ -191,8 +219,8 @@ of the component's README.
       shadows the page's inheritance for every instance. Conditional
       `:host([data-theme="dark"]) { color-scheme: dark }` (Strategy B)
       is fine and often preferred.
-- [ ] `:host-context()` selectors catch the framework conventions
-      (`data-theme`, `data-bs-theme`, `.dark`, `.light`).
+- [ ] `:host([data-context-theme="dark"|"light"])` map core's page / `theme-source`
+      signal onto `color-scheme` (no `:host-context()`, no `prefers-color-scheme`).
 - [ ] `:host([data-theme="dark"])` / `:host([data-theme="light"])` provide
       per-instance override.
 - [ ] At least one Playwright spec asserts WCAG contrast in dark mode for the
@@ -227,6 +255,70 @@ of the component's README.
       components per D-RS-2).
 - [ ] CHANGELOG entry for the version that lands the theming work.
 
+### Distribution & discoverability (web-components only)
+- [ ] Ships a Custom Elements Manifest (`custom-elements.json`)
+      generated by `@custom-elements-manifest/analyzer`, regenerated by
+      the build. See `custom-elements-manifest.md`.
+- [ ] `package.json` has the `customElements` field (→ the manifest)
+      and the `web-types` field (→ `web-types.json`); `keywords`
+      include `web-components` + `custom-elements`.
+- [ ] Editor autocomplete files ship: `vscode.html-custom-data.json`
+      (VS Code) and `web-types.json` (JetBrains), both derived from the
+      manifest.
+- [ ] All three artifacts are listed in `files` so they reach the npm
+      tarball; the manifest is fresh (re-running `cem analyze` yields no
+      diff).
+- [ ] Public-facing members carry harvestable `/** */` JSDoc (not bare,
+      not inline `//`) so autocomplete has hover text; enum members use
+      the canonical intro-line + blank-line + bullet-per-value format.
+- [ ] (N/A for Svelte / light-DOM components — D-CEM-1 = B.)
+
+### Responsive overlay (panel-opening components only)
+- [ ] Phone (≤ 600px) presents the panel **edge-to-edge full-screen**;
+      tablet & desktop keep the anchored floating panel. Switched by a
+      single `@media (max-width: 600px)` block. See `responsive-overlay.md`.
+- [ ] Full-screen sizing uses `dvh`/`dvw`, never `vh`/`vw` (the bottom of
+      the list / the Done button must not hide behind the mobile URL bar).
+- [ ] The JS positioning engine **yields** to the full-screen media query
+      — either `!important` on the full-screen geometry (D-RO-5 = A) or a
+      `matchMedia` skip in the engine (D-RO-5 = B).
+- [ ] An **explicit** close affordance (✕ / Done) exists in full-screen,
+      plus Esc + hardware-back. Backdrop-only dismissal is not enough.
+- [ ] Touch targets ≥ 44px (`--base-touch-target-min`), scroll container
+      has `overscroll-behavior: contain`, full-screen chrome pads with
+      `max(base, env(safe-area-inset-*))`.
+- [ ] `docs/usage.md` documents the phone behavior and the two consumer
+      viewport-meta duties (`interactive-widget=resizes-content`,
+      `viewport-fit=cover`).
+- [ ] (N/A for fully-inline components with no floating panel — D-RO-1 = B.)
+
+### Core adoption (web-components only)
+- [ ] Extends `BlissElement`; every public input is a row in `static inputs`;
+      no own `observedAttributes` / `attributeChangedCallback`. See
+      `core-adoption.md`.
+- [ ] Every `toBool` names its mode; `'presence'` only on `disabled` /
+      `readonly`; no `invalid input table` warning in the console.
+- [ ] Inner elements are revealed with `scrollIntoContainer()`, never
+      `scrollIntoView()`; a component that scrolls on its own exposes
+      `beforeScrollCallback` (documented, demoed, tested).
+- [ ] `before*Callback`s run through `runBeforeCallback*`; buttons via
+      `/actions`, menus via `openMenu`, floating UI via `/positioning`
+      (no direct `@floating-ui/dom`), loaders via `renderLoader`, search
+      via `/search`.
+- [ ] No `console.*` in component source (instance loggers only).
+- [ ] e2e specs drive `test/` fixture pages, never `examples-*.html`
+      (except the smoke spec).
+- [ ] Every non-core copy of a core algorithm has a `docs/parity.md` row.
+- [ ] `./core-adoption.checks.sh <package>` passes.
+
+### Example pages
+- [ ] Every example `<h2>` starts with a section code — `TH07 · Title`
+      (page prefix + two-digit number); a plain `Summary` is exempt.
+      See `example-pages.md`.
+- [ ] Each prefix belongs to one page; no code is used twice.
+- [ ] No code was renumbered or reused — new examples take the next
+      free number, deleted codes are retired.
+
 ---
 
 ## Vocabulary
@@ -245,8 +337,9 @@ To avoid confusion across docs:
 - **Theme designer** — `@keenmate/theme-designer`. Centralized package that
   sets all `--base-*` variables at `:root` based on a chosen theme.
 - **Light DOM** — the consumer's HTML outside the shadow root.
-- **`:host-context(selector)`** — the only way for shadow-DOM CSS to see
-  ancestors in light DOM. Use it for framework theme classes.
+- **`data-context-theme`** — the host attribute core writes with the page / `theme-source`
+  scheme (`dark` / `light`). It replaced `:host-context()` (unsupported in Firefox) for theme
+  signals; see color-scheme.md.
 
 ---
 
@@ -283,7 +376,7 @@ written):
 - `shadow-dom-events.md` — composed events, slot composition, event bubbling
 - `typescript.md` — type exports, declaration files, dual UMD/ESM publishing
 - `testing.md` — Playwright fixtures, contrast suites, snapshot conventions
-- `packaging.md` — `dist/` layout, package.json `exports` field, CDN-friendliness
+- `packaging.md` — `dist/` layout, package.json `exports` field, CDN-friendliness. (The Custom Elements Manifest slice of packaging — the `customElements` / `web-types` fields, the tarball artifacts, webcomponents.org discoverability — is already covered by `custom-elements-manifest.md`; `packaging.md` would pick up the rest.)
 - `svelte-component-shell.md` — the Svelte-specific equivalent of
   `theme-container.md`, expanded with SSR / hydration / stores notes once
   we have more than two Svelte components in the suite

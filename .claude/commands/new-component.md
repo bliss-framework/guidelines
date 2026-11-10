@@ -132,10 +132,14 @@ Next:
    or claim through the org's dashboard).
 3. Read the brand-new-component order:
    css-structure.md → theme-container.md → base-variables.md →
-   color-scheme.md → example-web-player.md
+   color-scheme.md → custom-elements-manifest.md (web-components only)
+   → example-web-player.md
 4. Scaffold the package: src/css/{main,variables,base,...}.css per
    css-structure.md, container per theme-container.md, manifest per
-   base-variables.md.
+   base-variables.md. For web-components, wire the Custom Elements
+   Manifest (custom-elements.json + customElements/web-types
+   package.json fields + editor tooling) per
+   custom-elements-manifest.md.
 ```
 
 End with a single-sentence verdict reminding the user that this intake

@@ -19,50 +19,29 @@ each tier.
 
 **Tier:** `[semi]` — grep finds every `color-scheme`; classifying each match as bare vs conditional is a regex/lookup step (same shape as C-TC-4)
 
-**What:** The component must not declare `color-scheme` on a bare
-`:host` selector. A bare declaration blocks the page's color-scheme
-from inheriting for every instance and is the #1 footgun (multiselect
-v1.10 → v1.11 bug).
-
-**Conditional declarations are explicitly allowed.** A
-`:host([data-theme="dark"]) { color-scheme: dark }`,
-`:host-context([data-bs-theme="dark"]) { color-scheme: dark }`, etc.,
-fires *only* when the consumer has explicitly signalled their theme
-intent — it amplifies the signal rather than fighting page
-inheritance. This is the recommended "Strategy B" pattern in
-[color-scheme.md](./color-scheme.md).
+**What:** The component must not declare `color-scheme` on a bare `:host` selector. A bare
+declaration blocks the page's color-scheme from inheriting for every instance (multiselect
+v1.10 → v1.11 bug). The canonical four rules (C-CS-3) are conditional and allowed.
 
 **How to verify:**
 ```bash
 grep -rn "color-scheme" src/css/
 ```
 
-For every match, classify it:
-
 | Selector shape | Verdict |
 |---|---|
 | `:host { color-scheme: ... }` (bare, no qualifier) | ❌ Fail |
-| `:host([attr]) { color-scheme: ... }` | ✅ Conditional — pass |
-| `:host-context(...) { color-scheme: ... }` | ✅ Conditional — pass |
-| Inside `@media` query | ✅ Pass |
+| `:host([data-context-theme="…"])` / `:host([data-theme="…"])` | ✅ Conditional — pass |
+| `:host-context(...)` | ❌ Fail — C-CS-11 (replaced by `data-context-theme`) |
 | Inside a comment / documentation | ✅ Pass |
 
-**Pass:** Every match is either inside a comment, inside `@media`, or
-on a *conditional* `:host(...)` / `:host-context(...)` selector.
+**Pass:** Every match is a comment or one of the canonical conditional rules.
 
-**Failure mode:** A bare `:host { color-scheme }` shadows page
-inheritance for every instance. The component renders light even when
-the page sets `body { color-scheme: dark }`.
+**Failure mode:** The component renders light even when the page sets `body { color-scheme: dark }`.
 
-**Worked example (passing — Strategy B):**
-`@keenmate/web-multiselect` v1.12.0-rc01+ — `src/css/dark-mode.css`
-declares `color-scheme: dark`/`light` on five conditional selectors
-(`:host([data-theme="dark"])`, `:host([data-theme="light"])`,
-`:host-context([data-theme="dark"])`,
-`:host-context([data-bs-theme="dark"])`, `:host-context(.dark)`, plus
-light counterparts). The bare `:host` block in `variables.css` carries
-a long explanatory comment about *why* it deliberately doesn't
-declare `color-scheme`.
+**Worked example (passing):** `@keenmate/web-multiselect` — `src/css/dark-mode.css` (the four
+rules) and the bare `:host` block in `variables.css`, which explains why it declares no
+`color-scheme`.
 
 ---
 
@@ -80,29 +59,40 @@ grep -nE "var\(--base-[a-z-]+,\s*#[0-9a-f]{3,6}\s*\)" src/css/_variables.css
 ```
 
 **Pass:** No matches (every color fallback uses `light-dark()` or chains to
-another variable that does). A few intentional exceptions are OK if
-documented (e.g., `--base-text-on-accent` which is `#ffffff` in both modes).
+another variable that does). Exempt: colors the base-css-variables contract
+keeps the same in both modes — a role's fill `--base-<role>-color`
+(`primary`, `secondary`, `success`, `danger`, `warning`, `info`; e.g.
+`var(--base-primary-color, #3b82f6)`) and the text on it,
+`--base-on-<role>-text-color`. Wrapping them as `light-dark(#3b82f6, #3b82f6)`
+would fail the contract check (`base-contract-check` C2: the fallback equals
+the contract default). The role's other steps (`-hover`, `-active`,
+`-bg-subtle`, `-text-color`) differ per mode and are not exempt. The 1.x names
+(`--base-accent-color*`, `*-on-accent`) stay exempt until every component is
+on 2.0.
 
 **Failure mode:** Consumers who set only `body { color-scheme: dark }` see a
 light component on a dark page.
 
 ---
 
-## C-CS-3 — Framework class selectors present
+## C-CS-3 — The canonical theme block
 
-**Tier:** `[semi]` — needs D-CS-2 conventions list as input; grepping each chosen selector is mechanical
+**Tier:** `[auto]` (web components on core; skipped for Svelte)
 
-**What:** `:host-context()` selectors exist for every framework convention
-declared in [color-scheme.decisions.md](./color-scheme.decisions.md) D-CS-2.
+**What:** The component's CSS has the four canonical rules from
+[color-scheme.md](./color-scheme.md) → "The canonical block", each setting `color-scheme`:
+`:host([data-context-theme="dark"])`, `:host([data-context-theme="light"])`, then
+`:host([data-theme="dark"])`, `:host([data-theme="light"])` — the per-instance pair declared
+**after** the context pair, in the same file, so it wins (same specificity).
 
-**How to verify:** Open `src/css/_dark-mode.css` (or wherever the framework-
-class overrides live) and confirm presence of every selector chosen in D-CS-2.
+**How to verify:** `color-scheme.checks.sh` (comments stripped). A selector list that adds an
+inner element of a programmatic API (`:host([data-theme="dark"]), .wtv__container[data-theme="dark"]`)
+passes.
 
-**Pass:** Every chosen convention has both `dark` and `light` selectors. The
-override blocks set the same variables in both directions.
+**Pass:** All four present, per-instance after context.
 
-**Failure mode:** Users on Bootstrap (or whichever framework was missed) get
-no dark mode even though the component supports it.
+**Failure mode:** The component ignores the page / `theme-source` / `setThemeMode()` (no context
+rules — web-editor), or the page signal beats a per-instance `data-theme` (wrong order).
 
 ---
 
@@ -212,10 +202,10 @@ conventions it supports and how consumers opt in.
 find a section covering:
 
 - What `--base-*` variables the component reads (or link to manifest)
-- Which `data-theme` attributes are honored on the host and on ancestors
-- Which framework class conventions are honored
-- How OS preference is picked up (`color-scheme` declaration required)
-- Any deviations from default decisions made in D-CS-1 through D-CS-6
+- The order: per-instance `data-theme` on the host → page / `theme-source` signal (core:
+  `data-theme`, `data-bs-theme`, `.dark` / `.light`) → inherited `color-scheme`
+- That the OS applies only through the page's `color-scheme: light dark`
+- Any deviation from the decisions (D-CS-4 / 5 / 6)
 
 **Pass:** Section exists and is accurate. A new user could read the
 file and know how to theme the component.
@@ -294,9 +284,10 @@ contents` slot)
      directly (skipping the `--<prefix>-*` layer entirely) and the
      page-level `color-scheme` is the only signal. Acceptable if the
      component declares this limitation in `docs/theming.md`.
-  3. The portal element declares its own conditional
-     `color-scheme: dark` block driven by the same signals listed in
-     D-CS-2, parallel to the host's signal selectors.
+  3. The portal element gets the host's attributes copied (core `anchor()` /
+     `createPopover()` `inheritThemeFrom: <host>`) and its root class carries the
+     same four canonical rules as the host. Preferred over all three: mount the
+     layer in the shadow root (color-scheme.md → "Panels, tooltips, menus").
 - Pass: the portal renders with correctly contrasting colors when the
   container is in dark mode (verify in the contrast fixture, C-CS-5).
 - Failure mode: web-grid bug — dark bg + dark text in dark mode
@@ -427,6 +418,28 @@ cross-component sizing story.
 
 ---
 
+## C-CS-11 — No retired theme mechanisms
+
+**Tier:** `[auto]` (web components on core; skipped for Svelte)
+
+**What:** None of the mechanisms core replaced, and no second per-instance switch:
+
+| Forbidden | Where | Why |
+|---|---|---|
+| `:host-context(` | `src/css` | replaced by core's `data-context-theme` (Firefox has no `:host-context()`) |
+| `prefers-color-scheme` | `src/css` | the OS reaches the component through the page's `color-scheme` |
+| `matchMedia(…prefers-color-scheme…)` | `src/**/*.ts` / `.js` (tests excluded) | core detects once per page |
+| `:host([data-bs-theme` / `:host([theme` / `:host(.dark` / `:host(.light` | `src/css` | `data-theme` is the only per-instance switch (decided 2026-11-10) |
+
+**How to verify:** `color-scheme.checks.sh` (CSS comments stripped; a mention in a comment passes).
+
+**Pass:** No match.
+
+**Failure mode:** The same markup behaves differently per component, or the component follows the
+OS while the page toggle says otherwise.
+
+---
+
 ## Summary checklist
 
 Paste into PR description, tick every box:
@@ -434,7 +447,7 @@ Paste into PR description, tick every box:
 ```
 [ ] C-CS-1 [semi]   no bare :host { color-scheme: ... } (conditional ok)
 [ ] C-CS-2 [auto]   light-dark() in color fallbacks
-[ ] C-CS-3 [semi]   framework class selectors present (for chosen conventions)
+[ ] C-CS-3 [auto]   the canonical four-rule theme block (context, then per-instance)
 [ ] C-CS-4 [manual] per-instance override works
 [ ] C-CS-5 [auto]   contrast test fixture exists
 [ ] C-CS-6 [semi]   Playwright contrast assertions pass
@@ -442,8 +455,9 @@ Paste into PR description, tick every box:
 [ ] C-CS-8 [manual] docs/theming.md documents the color-scheme contract
 [ ] C-CS-9 [semi]   CHANGELOG entry
 [ ] C-CS-10 [semi]  tooltips render correct contrast in dark mode (in-shadow / portal / native)
+[ ] C-CS-11 [auto]  no retired theme mechanisms (:host-context, prefers-color-scheme, JS detection, second switch)
 
-Tier totals: 2 auto, 5 semi, 3 manual
+Tier totals: 4 auto, 4 semi, 3 manual
 ```
 
 If any box is unchecked, the work is not done.

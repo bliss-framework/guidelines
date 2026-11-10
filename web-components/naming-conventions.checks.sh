@@ -16,7 +16,10 @@
 #   2   bad usage / target not found
 #
 # Detects web-component vs Svelte from filesystem signals so per-host
-# checks (C-NC-1, C-NC-2) skip cleanly on Svelte targets.
+# checks (C-NC-1, C-NC-2) skip cleanly on Svelte targets. A package with
+# TypeScript sources but no element (a headless store, a runtime library) is a
+# library: the TS API checks run, the element checks skip. A package with
+# neither (a CSS-only token library) has nothing to check and exits 0.
 
 set -u
 
@@ -63,13 +66,19 @@ if [[ -d "$TARGET/src/lib/components" ]] && \
 fi
 
 if find "$TARGET/src" -maxdepth 3 -name "*.ts" -print0 2>/dev/null | \
-   xargs -0 grep -lE "customElements\.define" 2>/dev/null | grep -q .; then
+   xargs -0 grep -lE "customElements\.define|registerComponent\(['\"]" 2>/dev/null | grep -q .; then
   IS_WEB_COMPONENT=1
 fi
 
+IS_LIBRARY=0
 if [[ "$IS_SVELTE" -eq 0 && "$IS_WEB_COMPONENT" -eq 0 ]]; then
-  echo "ERROR: could not detect web-component or Svelte component in $TARGET" >&2
-  exit 2
+  if find "$TARGET/src" -name "*.ts" ! -name "*.d.ts" -print -quit 2>/dev/null | grep -q .; then
+    IS_LIBRARY=1
+  else
+    echo "${C_INFO}Target:${C_RESET} $TARGET"
+    echo "${C_SKIP}⏭  SKIP${C_RESET} all — no custom element, Svelte component or TypeScript sources (nothing to check)"
+    exit 0
+  fi
 fi
 
 # Try to discover CSS prefix from manifest if not provided
@@ -89,6 +98,9 @@ fi
 echo "${C_INFO}Component target:${C_RESET} $TARGET"
 if [[ "$IS_WEB_COMPONENT" -eq 1 ]]; then echo "${C_INFO}Detected:${C_RESET} web-component"; fi
 if [[ "$IS_SVELTE" -eq 1 ]];        then echo "${C_INFO}Detected:${C_RESET} Svelte component"; fi
+if [[ "$IS_LIBRARY" -eq 1 ]];       then echo "${C_INFO}Detected:${C_RESET} library (TypeScript, no custom element)"; fi
+NOT_ELEMENT_REASON="N/A for Svelte component"
+[[ "$IS_LIBRARY" -eq 1 ]] && NOT_ELEMENT_REASON="no custom element (library)"
 echo "${C_INFO}CSS prefix:${C_RESET} ${CSS_PREFIX:-<unknown>}"
 echo
 
@@ -98,7 +110,7 @@ echo
 echo "${C_INFO}== Running [auto] checks ==${C_RESET}"
 
 if [[ "$IS_WEB_COMPONENT" -eq 1 ]]; then
-  TAG=$(grep -rhE "customElements\.define\(['\"][^'\"]+" "$SRC_DIR" 2>/dev/null | \
+  TAG=$(grep -rhE "(customElements\.define|registerComponent)\(['\"][^'\"]+" "$SRC_DIR" 2>/dev/null | \
         grep -oE "['\"][^'\"]+['\"]" | head -1 | tr -d "'\"")
   if [[ -z "$TAG" ]]; then
     record_fail "C-NC-1" "no customElements.define call found"
@@ -108,7 +120,7 @@ if [[ "$IS_WEB_COMPONENT" -eq 1 ]]; then
     record_pass "C-NC-1  custom-element tag '$TAG' is valid kebab-case"
   fi
 else
-  record_skip "C-NC-1" "N/A for Svelte component"
+  record_skip "C-NC-1" "$NOT_ELEMENT_REASON"
 fi
 
 # -----------------------------------------------------------------------------
@@ -116,8 +128,13 @@ fi
 # -----------------------------------------------------------------------------
 
 if [[ "$IS_WEB_COMPONENT" -eq 1 ]]; then
-  EVENT_NAMES=$(grep -rhEo "new CustomEvent\(['\"][^'\"]+['\"]" "$SRC_DIR" 2>/dev/null | \
+  # Raw CustomEvents plus core's this.emit('name').
+  EVENT_NAMES=$(grep -rhEo "(new CustomEvent|\.emit)\(['\"][^'\"]+['\"]" "$SRC_DIR" 2>/dev/null | \
                 grep -oE "['\"][^'\"]+['\"]" | tr -d "'\"" | sort -u)
+  # Native events that cross shadow DOM — a component event must not reuse them.
+  COMPOSED_NATIVE_RE='^(click|dblclick|auxclick|contextmenu|focus|blur|focusin|focusout|keydown|keyup|keypress|input|beforeinput|copy|cut|paste|drop|wheel|pointer[a-z]+|mouse[a-z]+|touch[a-z]+|drag[a-z]*|composition[a-z]+)$'
+  # Past-tense-looking adjectives that are fine as an event-name segment.
+  ED_ALLOWED_RE='^(checked|selected|expanded|collapsed|focused|disabled|enabled)$'
   if [[ -z "$EVENT_NAMES" ]]; then
     record_skip "C-NC-2" "no CustomEvent dispatches found"
   else
@@ -131,16 +148,28 @@ if [[ "$IS_WEB_COMPONENT" -eq 1 ]]; then
       if [[ "$name" =~ ^on[A-Z] ]] || [[ "$name" =~ Event$ ]]; then
         BAD="${BAD}${name} (decorated), "
       fi
+      if [[ "$name" =~ $COMPOSED_NATIVE_RE ]]; then
+        BAD="${BAD}${name} (composed native name), "
+      fi
+      # No component prefix (needs the CSS prefix argument, e.g. `cp`).
+      if [[ -n "$CSS_PREFIX" ]] && [[ "$name" == "$CSS_PREFIX"-* ]]; then
+        BAD="${BAD}${name} (component prefix), "
+      fi
+      # Present tense: the last segment must not be a past participle.
+      last="${name##*-}"
+      if [[ "$last" =~ ed$ ]] && ! [[ "$last" =~ $ED_ALLOWED_RE ]]; then
+        BAD="${BAD}${name} (past tense), "
+      fi
     done <<< "$EVENT_NAMES"
     if [[ -z "$BAD" ]]; then
       EVENT_COUNT=$(echo "$EVENT_NAMES" | wc -l)
-      record_pass "C-NC-2  $EVENT_COUNT CustomEvent name(s) all bare lowercase"
+      record_pass "C-NC-2  $EVENT_COUNT event name(s) bare, present tense, no native clash"
     else
       record_fail "C-NC-2" "non-bare CustomEvent name(s): ${BAD%, }"
     fi
   fi
 else
-  record_skip "C-NC-2" "N/A for Svelte component"
+  record_skip "C-NC-2" "$NOT_ELEMENT_REASON"
 fi
 
 # -----------------------------------------------------------------------------
@@ -175,6 +204,7 @@ else
         skip = 0
       }
       depth = 0
+      parens = 0
       next
     }
     /\{/ { depth++ }
@@ -182,12 +212,20 @@ else
       depth--
       if (depth <= 0) iface = ""
     }
-    skip == 0 && iface != "" && /^\s+[a-zA-Z_][a-zA-Z0-9_]*\??:\s+boolean/ {
+    # Inside an open `(` (a signature spanning lines) a `name: boolean,` line is a
+    # PARAMETER, not a field. `parens` is the depth at the start of the line.
+    skip == 0 && iface != "" && parens <= 0 && /^\s+[a-zA-Z_][a-zA-Z0-9_]*\??:\s+boolean/ {
       match($0, /^\s+([a-zA-Z_][a-zA-Z0-9_]*)/, m)
       name = m[1]
       if (name !~ /^(is|has|can|should)[A-Z]/) {
         print name " (in " iface ")"
       }
+    }
+    {
+      code = $0
+      sub(/\/\/.*/, "", code)
+      parens += gsub(/\(/, "(", code) - gsub(/\)/, ")", code)
+      if (parens < 0) parens = 0
     }
   ' "${TYPE_FILES[@]}" 2>/dev/null)
 
@@ -210,16 +248,41 @@ fi
 #   event (on*), not a callback. A void-returning *Callback is an event
 #   wearing the wrong suffix → rename to on*.
 #   before*Callback interceptors are EXEMPT — their return (false / modified
-#   args) is consumed. The on*-returns-a-value half stays [semi].
+#   args) is consumed. So are content providers: a render*Callback, or any
+#   *Callback that receives an HTMLElement, writes its result into the element it gets
+#   (renderNodeCallback(node, container), ctx.containerElement).
+#   The on*-returns-a-value half stays [semi].
+#
+#   Per field: the FIELD name only (not `…Callback` inside a type name such as
+#   NodeRenderCallbackContext), and the return type after the parameter list's
+#   own `)`, so a returned cleanup `=> () => void` isn't read as `=> void`.
 # -----------------------------------------------------------------------------
 
 if [[ "${#TYPE_FILES[@]}" -eq 0 ]]; then
   record_skip "C-NC-4" "no types files found (auto portion)"
 else
-  VOID_CALLBACKS=$(grep -hEn "^\s+[a-z][a-zA-Z0-9]*Callback\??:\s*\(.*\)\s*=>\s*(void|Promise<void>)" \
-                   "${TYPE_FILES[@]}" 2>/dev/null | \
-                   grep -oE "[a-z][a-zA-Z0-9]*Callback" | \
-                   grep -vE "^before" | sort -u)
+  VOID_CALLBACKS=$(awk '
+    match($0, /^[ \t]+[a-z][a-zA-Z0-9]*Callback\??:[ \t]*/) {
+      name = $0
+      sub(/^[ \t]+/, "", name)
+      sub(/\??:.*/, "", name)
+      rest = substr($0, RLENGTH + 1)
+      if (substr(rest, 1, 2) == "((") rest = substr(rest, 2)   # ((…) => …) | null
+      if (substr(rest, 1, 1) != "(") next
+      level = 0
+      for (i = 1; i <= length(rest); i++) {
+        c = substr(rest, i, 1)
+        if (c == "(") level++
+        else if (c == ")") { level--; if (level == 0) break }
+      }
+      if (level != 0) next
+      params = substr(rest, 2, i - 2)
+      returned = substr(rest, i + 1)
+      if (returned !~ /^[ \t]*=>[ \t]*(void|Promise<void>)[ \t]*([;,)|]|$)/) next
+      if (name ~ /^render[A-Z]/ || params ~ /HTMLElement/) next
+      print name
+    }
+  ' "${TYPE_FILES[@]}" 2>/dev/null | grep -vE "^before" | sort -u)
   if [[ -z "$VOID_CALLBACKS" ]]; then
     record_pass "C-NC-4  no fire-and-forget (=> void) *Callback fields (auto portion; on*-returns-value half is [semi])"
   else
@@ -370,6 +433,28 @@ else
     grep -rEn "^export\s+interface\s+I[A-Z]" "$SRC_DIR" 2>/dev/null | head -5 | sed 's|^|        |'
   fi
   record_fail "C-NC-11" "$TOTAL_BAD type(s) use forbidden suffix or I-prefix"
+fi
+
+# -----------------------------------------------------------------------------
+# C-NC-13 — showMessage takes a variant with the contract's role names (D-NC-23)
+#   Only for a component that shows messages. Flags the message kind declared
+#   as `type` / `severity` / `level` / `kind` of a Message* type, and a status
+#   union that says 'error' instead of 'danger'.
+# -----------------------------------------------------------------------------
+
+if ! grep -rqE "showMessage\s*\(" "$SRC_DIR" --include=*.ts 2>/dev/null; then
+  record_skip "C-NC-13" "component shows no messages (no showMessage)"
+else
+  MESSAGE_KIND_FIELDS=$(grep -rEn "^\s*(type|severity|level|kind)\??\s*:\s*Message\w*" "$SRC_DIR" --include=*.ts 2>/dev/null)
+  ERROR_UNIONS=$(grep -rEn "'info'" "$SRC_DIR" --include=*.ts 2>/dev/null | grep "'warning'" | grep "'error'")
+  BAD_MESSAGE_LINES=$(printf '%s\n%s\n' "$MESSAGE_KIND_FIELDS" "$ERROR_UNIONS" | grep .)
+  BAD_MESSAGE_COUNT=$(printf '%s' "$BAD_MESSAGE_LINES" | grep -c .)
+  if [[ "$BAD_MESSAGE_COUNT" -eq 0 ]]; then
+    record_pass "C-NC-13 message kind is 'variant' with the contract's role names"
+  else
+    printf '%s\n' "$BAD_MESSAGE_LINES" | head -5 | sed 's|^|        |'
+    record_fail "C-NC-13" "$BAD_MESSAGE_COUNT message kind declaration(s) — use variant?: MessageVariant ('info' | 'success' | 'warning' | 'danger')"
+  fi
 fi
 
 # -----------------------------------------------------------------------------

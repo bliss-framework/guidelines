@@ -1,6 +1,6 @@
 # Component Structure — Web Component / Svelte Component Guideline
 
-How a KeenMate component library is organized internally: which files
+How a Keenmate component library is organized internally: which files
 exist, which layers they correspond to, what each layer is allowed to
 import, what TypeScript suffixes mean.
 
@@ -274,7 +274,7 @@ implementation. Wait until a second implementation is real.
 
 If you do need an interface, name it for the role: `Renderer`,
 `Searcher`, `Loader`. No `I` prefix — that's a .NET tradition the
-KeenMate libraries don't follow.
+Keenmate libraries don't follow.
 
 ---
 

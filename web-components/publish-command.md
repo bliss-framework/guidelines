@@ -334,6 +334,14 @@ Per-repo. MUST:
 - Name the build command (`{{BUILD_CMD}}`) and what it does (`{{BUILD_DETAIL}}`).
 - List the expected dist artifacts for a smoke check after build.
 - Note any per-repo build-time gotchas (`{{BUILD_GOTCHAS}}`).
+- **For web-components:** confirm the build regenerated the Custom
+  Elements Manifest and its editor files — `custom-elements.json`,
+  `web-types.json`, `vscode.html-custom-data.json` (via the `cem
+  analyze` step wired into build; see
+  [custom-elements-manifest.md](./custom-elements-manifest.md),
+  C-CEM-7). A stale manifest ships an API the catalog and editors then
+  advertise wrongly (C-CEM-10). Svelte / light-DOM components have no
+  CEM — this bullet is N/A (D-CEM-1 = B).
 
 ### Section 13 — Step 9: Verify package contents [per-repo]
 
@@ -343,6 +351,12 @@ Per-repo because the file list varies. MUST:
 - List the files that MUST be in the tarball (`{{PACK_FILES}}`).
 - List the files that MUST NOT leak in (`{{PACK_LEAKS}}`).
 - Reference the `files` field in `package.json` as the control surface.
+- **For web-components:** `{{PACK_FILES}}` MUST include the three CEM
+  artifacts — `custom-elements.json`, `web-types.json`,
+  `vscode.html-custom-data.json` — alongside
+  `component-variables.manifest.json`. A manifest that doesn't ship is
+  invisible to npm consumers and to the webcomponents.org catalog
+  (C-CEM-8). N/A for Svelte / light-DOM components.
 
 ### Section 14 — Step 10: Commit
 
@@ -374,6 +388,14 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 (`./CHANGELOG.md`, `./README.md`, `{{PKG_JSON_PATH}}`, etc.) —
 plus any auto-generated files that need staging in this repo
 (version.ts, mirrored package README, etc.).
+
+For web-components that **commit** the CEM artifacts (D-CEM-2 = A, the
+default), `{{STAGE_FILES}}` also includes `./custom-elements.json`,
+`./web-types.json`, and `./vscode.html-custom-data.json` so the
+manifest refreshed by the build is committed alongside the version
+bump — the diff doubles as a reviewable API-change record. Repos that
+gitignore them (D-CEM-2 = B) skip this and rely on the `files` field to
+ship them.
 
 ### Section 15 — Step 11: Report
 

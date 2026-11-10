@@ -1,5 +1,5 @@
 ---
-description: Full component validation (web-components and Svelte). Runs all seven triads — component-structure, naming-conventions, css-structure, theme-container, base-variables, color-scheme, readme-structure. Invokes the .checks.sh scripts for [auto] checks then judges [semi]/[manual]. Produces a consolidated report in chat AND writes a punch-list file (validation_<timestamp>.md) to the target component folder.
+description: Full component validation (web-components and Svelte). Runs all nine triads — component-structure, naming-conventions, css-structure, theme-container, base-variables, color-scheme, readme-structure, custom-elements-manifest (web-components only), responsive-overlay (panel-opening components only). Invokes the .checks.sh scripts for [auto] checks then judges [semi]/[manual]. Produces a consolidated report in chat AND writes a punch-list file (validation_<timestamp>.md) to the target component folder.
 argument-hint: <path-to-component-package>
 allowed-tools: Read, Glob, Grep, Bash, Write
 ---
@@ -35,7 +35,14 @@ Read these in order:
    and `color-scheme.checks.md`.
 9. `C:\Git\BlissFramework\guidelines\web-components\readme-structure.md`
    and `readme-structure.checks.md`.
-10. Each of the `.decisions.md` files — to know which check skips/N/As
+10. `C:\Git\BlissFramework\guidelines\web-components\custom-elements-manifest.md`
+    and `custom-elements-manifest.checks.md` — **web-components only**;
+    the whole triad is N/A for Svelte / light-DOM components (D-CEM-1).
+11. `C:\Git\BlissFramework\guidelines\web-components\responsive-overlay.md`
+    and `responsive-overlay.checks.md` — **panel-opening components
+    only**; the whole triad is N/A for fully-inline components with no
+    floating panel (D-RO-1).
+12. Each of the `.decisions.md` files — to know which check skips/N/As
     are legitimate.
 
 Extract:
@@ -167,10 +174,10 @@ When in doubt, prefer to surface a Fail and let the reader decide.
 False positives in the punch-list are recoverable; silently
 suppressing a real bug because an entry "looked plausible" is not.
 
-## Step 3 — Run the `[auto]` checks via the seven `.checks.sh` scripts
+## Step 3 — Run the `[auto]` checks via the eight `.checks.sh` scripts
 
 Each triad ships a runnable bash script that mechanically executes its
-`[auto]` checks. Run all seven in sequence first — this knocks out
+`[auto]` checks. Run all eight in sequence first — this knocks out
 roughly half the work in a few seconds with deterministic verdicts.
 Capture each script's output verbatim for the report.
 
@@ -183,14 +190,20 @@ bash C:/Git/BlissFramework/guidelines/web-components/theme-container.checks.sh  
 bash C:/Git/BlissFramework/guidelines/web-components/base-variables.checks.sh        "$ARGUMENTS" <css-prefix>
 bash C:/Git/BlissFramework/guidelines/web-components/color-scheme.checks.sh          "$ARGUMENTS"
 bash C:/Git/BlissFramework/guidelines/web-components/readme-structure.checks.sh      "$ARGUMENTS"
+bash C:/Git/BlissFramework/guidelines/web-components/custom-elements-manifest.checks.sh "$ARGUMENTS"
+bash C:/Git/BlissFramework/guidelines/web-components/responsive-overlay.checks.sh    "$ARGUMENTS" <css-prefix>
 ```
 
 The CSS prefix can be omitted from the calls that accept it if
 `component-variables.manifest.json` declares it (each script auto-
-discovers). If a script fails to run, note the failure and fall back
-to the `.checks.md` prose for that triad's `[auto]` checks.
+discovers). Two scripts self-gate: custom-elements-manifest skips the
+whole triad for a Svelte / light-DOM component (no
+`customElements.define`), and responsive-overlay skips the whole triad
+for a fully-inline component (no floating-panel signals — heuristic;
+confirm with C-RO-1). If a script fails to run, note the failure and
+fall back to the `.checks.md` prose for that triad's `[auto]` checks.
 
-Across all seven scripts, the `[auto]` tier covers **43 of the 89
+Across all nine scripts, the `[auto]` tier covers **55 of the 116
 checks** (see `web-components/README.md` → "Check tiers"):
 
 | Triad | Auto checks the script runs |
@@ -202,10 +215,12 @@ checks** (see `web-components/README.md` → "Check tiers"):
 | base-variables | C-BV-1, 2, 3, 5, 6, 9 |
 | color-scheme | C-CS-2, 5, plus C-CS-10 (partial — hardcoded colors in dedicated tooltip CSS files only) |
 | readme-structure | C-RS-1, 2, 3, 4, 5, 14, 15 |
+| custom-elements-manifest | C-CEM-1, 2, 3, 4, 5, 6, 7, 8, 9 (web-components only; N/A for Svelte) |
+| responsive-overlay | C-RO-2, 4, 8 (panel-opening components only; N/A for inline) |
 
 ## Step 4 — Run the `[semi]` and `[manual]` checks (judgment path)
 
-For the remaining 46 checks (31 `[semi]`, 15 `[manual]`), execute the
+For the remaining 61 checks (43 `[semi]`, 18 `[manual]`), execute the
 "How to verify" prose from each `.checks.md`, following the discipline
 in the matching individual validator command:
 
@@ -226,6 +241,18 @@ in the matching individual validator command:
   verify the matching theme-propagation mechanism).
 - `/validate-readme-structure` notes for the eight C-RS `[semi]` /
   `[manual]` checks.
+- `/validate-custom-elements-manifest` notes for the four C-CEM
+  `[semi]` / `[manual]` checks (C-CEM-10 freshness, C-CEM-11
+  manifest-matches-source, C-CEM-13 harvestable property JSDoc,
+  C-CEM-12 editor autocomplete) — **skip entirely for Svelte /
+  light-DOM components** (D-CEM-1 = B).
+- `/validate-responsive-overlay` notes for the eleven C-RO `[semi]` /
+  `[manual]` checks (C-RO-1 applicability, C-RO-3 full-screen geometry,
+  C-RO-5 positioning-yield, C-RO-6 explicit close, C-RO-7 touch
+  targets, C-RO-9 safe-area insets, C-RO-12 BEM+variables, C-RO-13
+  docs, C-RO-14 CHANGELOG, C-RO-10 soft-keyboard, C-RO-11 visual
+  smoke) — **skip entirely for fully-inline components with no floating
+  panel** (D-RO-1 = B).
 
 Run **independent** Grep / Read calls in parallel — many checks
 inspect the same files, so batch reads and reuse the content across
@@ -238,7 +265,7 @@ result for both.
 
 ## Step 5 — Cross-cutting invariants (from CLAUDE.md)
 
-Beyond the 89 checks, verify the **Non-negotiable invariants** from
+Beyond the 116 checks, verify the **Non-negotiable invariants** from
 CLAUDE.md explicitly:
 
 1. Components work standalone (covered by C-BV-10 / C-TC-13 — manual).
@@ -299,7 +326,9 @@ Output to the conversation:
 | Base variables       |  /14 |      |        |           |     |
 | Color scheme         |  /10 |      |        |           |     |
 | Readme structure     |  /15 |      |        |           |     |
-| **Total**            |  /89 |      |        |           |     |
+| Custom elements manifest | /13 |   |        |           |     |
+| Responsive overlay   |  /14 |      |        |           |     |
+| **Total**            | /116 |      |        |           |     |
 
 ## Auto-check script outputs
 
@@ -323,6 +352,12 @@ Output to the conversation:
 
 ### readme-structure.checks.sh
 <paste verbatim>
+
+### custom-elements-manifest.checks.sh
+<paste verbatim (web-components only; N/A block for Svelte)>
+
+### responsive-overlay.checks.sh
+<paste verbatim (panel-opening components only; N/A block for inline)>
 
 ## Invariant violations (CLAUDE.md)
 - <#N — what's violated, at which file:line>
@@ -350,6 +385,10 @@ Output to the conversation:
 [...]
 
 ## Readme structure (C-RS-1 → C-RS-15) — semi/manual checks
+[...]
+
+## Responsive overlay (C-RO-1 → C-RO-14) — semi/manual checks
+(panel-opening components only; N/A block for inline)
 [...]
 
 ## Canonical taxonomy alignment
@@ -504,7 +543,23 @@ Readme structure
 [ ] C-RS-12 [semi]   docs/examples.md has at least one worked example beyond the README quick start
 [ ] C-RS-13 [semi]   docs/accessibility.md covers keyboard + ARIA + focus (N/A if D-RS-2 = B)
 [ ] C-RS-14 [auto]   README acknowledges BlissFramework guidelines + links to blissframework.dev
-[ ] C-RS-15 [auto]   README has canonical ## About paragraph (KeenMate + Pure Admin + standalone + --base-*)
+[ ] C-RS-15 [auto]   README has canonical ## About paragraph (Keenmate + Pure Admin + standalone + --base-*)
+
+Responsive overlay (panel-opening components only; N/A if D-RO-1 = B)
+[ ] C-RO-1  [semi]   applicability gate — component opens a panel
+[ ] C-RO-2  [auto]   phone breakpoint media query present, single source
+[ ] C-RO-3  [semi]   full-screen block uses fixed/inset + dvh/dvw
+[ ] C-RO-4  [auto]   no static vh/vw in overlay sizing
+[ ] C-RO-5  [semi]   positioning engine yields (!important or matchMedia)
+[ ] C-RO-6  [semi]   explicit close affordance in full-screen
+[ ] C-RO-7  [semi]   touch targets ≥ 44px in phone mode
+[ ] C-RO-8  [auto]   overscroll-behavior: contain on the list
+[ ] C-RO-9  [semi]   safe-area insets on full-screen chrome
+[ ] C-RO-10 [manual] soft-keyboard behavior (device / emulator)
+[ ] C-RO-11 [manual] visual smoke test — phone full-screen, tablet anchored
+[ ] C-RO-12 [semi]   BEM + variable discipline for the mode
+[ ] C-RO-13 [semi]   docs cover responsive behavior + viewport-meta duties
+[ ] C-RO-14 [semi]   CHANGELOG entry
 ```
 ```
 
@@ -586,7 +641,9 @@ in `VALIDATION-NOTES.md`.
 | Base variables       |   /14 |      |        |           |     |
 | Color scheme         |   /10 |      |        |           |     |
 | Readme structure     |   /15 |      |        |           |     |
-| **Total**            |   /89 |      |        |           |     |
+| Custom elements manifest | /13 |    |        |           |     |
+| Responsive overlay   |   /14 |      |        |           |     |
+| **Total**            |  /116 |      |        |           |     |
 
 ## Fixes to apply
 
@@ -685,10 +742,13 @@ the PR description.
   - `bash <guidelines>/web-components/base-variables.checks.sh        <pkg> <prefix>`
   - `bash <guidelines>/web-components/color-scheme.checks.sh          <pkg>`
   - `bash <guidelines>/web-components/readme-structure.checks.sh      <pkg>`
+  - `bash <guidelines>/web-components/custom-elements-manifest.checks.sh <pkg>` (web-components only)
+  - `bash <guidelines>/web-components/responsive-overlay.checks.sh <pkg> <prefix>` (panel-opening components only)
 - Individual topic validators: `/validate-component-structure`,
   `/validate-naming-conventions`, `/validate-css-structure`,
   `/validate-theme-container`, `/validate-base-variables`,
-  `/validate-color-scheme`, `/validate-readme-structure`
+  `/validate-color-scheme`, `/validate-readme-structure`,
+  `/validate-custom-elements-manifest`, `/validate-responsive-overlay`
 ```
 
 ### Confirm and surface the path
@@ -911,4 +971,4 @@ The next run re-asks.
 - Prefer Grep over `Bash` + `grep`; prefer Read over `cat`; prefer Glob
   over `Bash` + `ls`.
 - Batch independent file reads in parallel — performance matters when
-  scanning 89 checks against the same handful of files.
+  scanning 116 checks against the same handful of files.

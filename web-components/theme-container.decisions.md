@@ -138,7 +138,8 @@ the conventions are honored; D-CS-2 is *which* conventions.
 
 Drop one if the component will never run in that ecosystem.
 
-For web-components these are wired with `:host-context(...)`. For Svelte
+For web components on core this is decided: core reads these on `<html>` / `<body>` / the
+`theme-source` element and writes `data-context-theme` (no component selectors). For Svelte
 they're plain descendant selectors (`[data-theme="dark"] .ltree-container`).
 
 **Your set:** ____________

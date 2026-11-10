@@ -16,11 +16,18 @@ Each check is tagged **`[auto]`**, **`[semi]`**, or **`[manual]`** — see
 [css-structure.checks.md](./css-structure.checks.md) for the meaning of
 each tier.
 
+**Libraries.** A package with TypeScript sources but no custom element (a
+headless store such as `web-dropzone-core`, a runtime library) is checked as a
+**library**: the API checks (C-NC-3, 4, 6, 9, 11, 13) run, the element checks
+(C-NC-1, C-NC-2) are N/A, and C-NC-8 runs only if it ships component CSS. A
+package with no TypeScript sources at all (a CSS-only token library) has
+nothing to check — the script reports that and exits 0.
+
 ---
 
 ## C-NC-1 — Custom-element tag is hyphenated and prefixed
 
-**Tier:** `[auto]` (N/A for Svelte)
+**Tier:** `[auto]` (N/A for Svelte and for libraries)
 
 **What:** The custom-element tag passed to `customElements.define`
 contains a hyphen and starts with the family prefix.
@@ -46,19 +53,34 @@ Wrong prefix means the component doesn't read as part of the family.
 
 **Tier:** `[auto]` (N/A for Svelte)
 
-**What:** Every `new CustomEvent('name', …)` call uses a bare
-lowercase name with no `on*` prefix or `Event` suffix.
+**What:** Every dispatched event — `new CustomEvent('name', …)`, core's
+`this.emit('name', …)` — uses a
+bare, present-tense, lowercase name with no `on*` prefix or `Event`
+suffix, and is not a composed native event name.
 
 **How to verify:**
 ```bash
-grep -rEn "new CustomEvent\(['\"]" packages/<component>/src/
+grep -rEn "(new CustomEvent|\.emit)\(['\"]" packages/<component>/src/
 ```
 
 **Pass:** Every dispatched event name matches `^[a-z]+(-[a-z]+)*$`.
-None starts with `on`. None ends with `Event` or `Evt`.
+None starts with `on`. None ends with `Event` or `Evt`. The last
+segment doesn't end in `-ed` (past tense: `node-clicked`,
+`tree-changed`) unless it's an adjective on the allow-list (`checked`,
+`selected`, `expanded`, `collapsed`, `focused`, `disabled`, `enabled`).
+None is a composed native (`click`, `dblclick`, `auxclick`,
+`contextmenu`, `focus`, `blur`, `focusin`, `focusout`, `keydown`,
+`keyup`, `keypress`, `input`, `beforeinput`, `copy`, `cut`, `paste`,
+`drop`, `wheel`, `pointer*`, `mouse*`, `touch*`, `drag*`,
+`composition*`).
+
+With the CSS prefix argument, none starts with `<prefix>-` (`cp-select`).
+Names built at runtime (`dispatch(name)`) aren't visible to the grep —
+review those by hand.
 
 **Failure mode:** Non-standard event names; consumers reach for
-`addEventListener('onSelect', …)` and silently miss the event.
+`addEventListener('onSelect', …)` and silently miss the event. A
+composed-native name delivers two different events to one listener.
 
 **Exception:** N/A for Svelte components (they don't dispatch
 `CustomEvent`s in the Svelte-prop world).
@@ -129,12 +151,20 @@ The seam is whether the component uses the return value:
 `*Callback` is reserved for return-consuming functions. A void-returning
 field named `*Callback` is an event wearing the wrong suffix — rename to
 `on*`. An `on*` field that returns a value the component reads is the
-inverse error — rename to the matching `*Callback`.
+inverse error — rename to the matching `*Callback`. A content provider
+that writes into the element it's given (`render*Callback`, or a
+`*Callback` taking an `HTMLElement`) has its result used too; it isn't
+an event (naming-conventions.md → "Filling an element counts as a used
+result").
 
 **How to verify:**
 ```bash
 # (a) [auto] Fields named *Callback that return void → should be on* events.
 #     before*Callback is exempt — its return (false / modified args) IS consumed.
+#     So are render*Callback and *Callback taking an HTMLElement (content providers).
+#     .checks.sh reads the FIELD name only and the return type after the parameter
+#     list's own `)` — this grep also hits `…Callback` inside a type name and a
+#     returned function (`=> () => void`); drop those by hand.
 grep -rEn "^\s+[a-z][a-zA-Z0-9]*Callback\??:\s*\(.*\)\s*=>\s*(void|Promise<void>)" \
     packages/<component>/src/types.ts \
     packages/<component>/src/lib/**/*.svelte \
@@ -401,6 +431,21 @@ debug strings, and similar tiny literals are fine inline.
 
 ---
 
+## C-NC-13 — A message's kind is `variant`, with the contract's role names
+
+**Tier:** `[auto]`
+
+**What:** A component with `showMessage()` declares the message kind as
+`variant?: MessageVariant` — `'info' | 'success' | 'warning' | 'danger'`,
+the status roles of the `--base-*` contract and pure-admin's toast
+variants. Fails on a `type` / `severity` / `level` / `kind` field typed
+`Message*`, and on a status union that says `'error'` (it is `'danger'`).
+Skipped when the component shows no messages.
+
+**Tag:** D-NC-23.
+
+---
+
 ## Summary checklist
 
 Paste into PR description:
@@ -419,6 +464,7 @@ Naming conventions
 [ ] C-NC-10 [manual] validate* vs check* used per their semantics
 [ ] C-NC-11 [auto]   TS interface suffixes from closed set
 [ ] C-NC-12 [semi]   no magic strings inline
+[ ] C-NC-13 [auto]   message kind is variant: info | success | warning | danger
 
-Tier totals: 7 auto, 4 semi, 1 manual
+Tier totals: 8 auto, 4 semi, 1 manual
 ```
