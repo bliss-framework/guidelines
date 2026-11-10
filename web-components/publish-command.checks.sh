@@ -371,6 +371,21 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# C-PC-11 — Release notes wired into Step 1, Step 5 and Step 10
+# -----------------------------------------------------------------------------
+
+RN_MISSING=()
+grep -qE "release-notes\.md"                    "$PUBLISH_FILE" || RN_MISSING+=("Step 1 reference to release-notes.md")
+grep -qE "release-notes\.checks\.sh|C-RN-12"    "$PUBLISH_FILE" || RN_MISSING+=("Step 5 release-notes validation (release-notes.checks.sh / C-RN-12)")
+echo "$STEP10_BLOCK" | grep -qE "release-notes|RELEASE_NOTES_DIR" || RN_MISSING+=("Step 10 staging of release-notes/NEW_VERSION.md")
+
+if [[ "${#RN_MISSING[@]}" -eq 0 ]]; then
+  record_pass "C-PC-11 release notes drafted (Step 1), validated (Step 5), staged (Step 10)"
+else
+  record_fail "C-PC-11" "missing: ${RN_MISSING[*]} — see publish-command.md Section 5 / 9 / 14"
+fi
+
+# -----------------------------------------------------------------------------
 # Summary
 # -----------------------------------------------------------------------------
 

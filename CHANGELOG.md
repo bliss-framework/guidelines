@@ -10,6 +10,26 @@ Categories used: **Added**, **Changed**, **Removed**, **Fixed**.
 
 ## 2026-11-10
 
+### Added
+
+- **release-notes triad** (release-notes.md / .decisions.md / .checks.md / .checks.sh). Every
+  version published to npm — rc and final — ships `release-notes/<version>.md`: the upgrade
+  guide, next to the CHANGELOG (complete record) and README What's New (highlights). Template
+  taken from web-multiselect's notes: header (title, `**Released:**` status line, baseline,
+  absolute CHANGELOG link) → Contents → Requirements → `- [ ]` Upgrade checklist grouped by
+  audience → Breaking / Behaviour changes → New features → New API → Visible changes without a
+  migration → Fixes → Internal. Baseline = last version on npm; a final after rcs gets a
+  **consolidated guide** from the previous final. Notes ship in `files` and every What's New
+  section links them. C-RN-1 … C-RN-9 `[auto]`, C-RN-10/11 `[semi]`, C-RN-12 `[manual]`.
+- **/publish drafts and validates the notes** (publish-command.md): new `{{RELEASE_NOTES_DIR}}`
+  variable; Step 1 drafts `release-notes/NEW_VERSION.md` for approval when missing, Step 4 keeps
+  the What's New upgrade-guide / "Earlier releases" links, Step 5 validates the notes against
+  the CHANGELOG, Step 9 ships `release-notes/`, Step 10 stages the file. New check **C-PC-11**
+  — every per-repo `/publish` fails it until updated (web-multiselect's included).
+- **readme-structure.md:** each What's New section opens with an upgrade-guide line.
+- **Root `README.md`**: what this repository is, how the topics / decisions / checks / scripts
+  fit together, how to run the checks and the slash commands, how to change the guidelines.
+
 ### Changed
 
 - **color-scheme.md rewritten to the core theme model.** Core detects the page / `theme-source`

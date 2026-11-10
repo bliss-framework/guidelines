@@ -51,7 +51,8 @@ Each check inside a `.checks.md` carries a tier tag right under its heading:
 Current tier totals across the checks (CSS structure + theme container
 + base variables + color scheme + component structure + naming
 conventions + readme structure + custom-elements-manifest +
-responsive-overlay + publish-command + example-pages + core-adoption):
+responsive-overlay + publish-command + release-notes + example-pages +
+core-adoption):
 
 | Triad | auto | semi | manual | total |
 |-------|-----:|-----:|-------:|------:|
@@ -64,12 +65,13 @@ responsive-overlay + publish-command + example-pages + core-adoption):
 | readme-structure | 8 | 7 | 1 | 16 |
 | custom-elements-manifest | 9 | 3 | 1 | 13 |
 | responsive-overlay | 3 | 9 | 2 | 14 |
-| publish-command | 11 | 0 | 0 | 11 |
+| publish-command | 12 | 0 | 0 | 12 |
+| release-notes | 9 | 2 | 1 | 12 |
 | example-pages | 3 | 0 | 1 | 4 |
 | core-adoption | 7 | 5 | 1 | 13 |
-| **Total** | **77** | **48** | **20** | **145** |
+| **Total** | **87** | **50** | **21** | **158** |
 
-That’s roughly 53% auto, 33% semi, 14% manual — most of the rulebook
+That’s roughly 55% auto, 32% semi, 13% manual — most of the rulebook
 *can* be mechanized; the open work is writing the runner script(s).
 
 ## When to consult which file
@@ -88,6 +90,7 @@ That’s roughly 53% auto, 33% semi, 14% manual — most of the rulebook
 | Making a component that **opens a floating panel** (dropdown, calendar, autocomplete, menu) present well on phones — phone full-screen vs tablet/desktop anchored, `dvh` sizing, soft-keyboard, touch targets, safe-area insets | [responsive-overlay.md](./responsive-overlay.md) → [.decisions](./responsive-overlay.decisions.md) → implement → [.checks](./responsive-overlay.checks.md) *(panel-opening components only)* |
 | Wiring a web-component's behaviour onto `@keenmate/web-components-core` — `BlissElement` + the `static inputs` table (`toBool` modes, dead defaults), before-callbacks, actions / menus / positioning, loaders, logging, forms, search, **scrolling inner elements into view (`scrollIntoContainer`, `beforeScrollCallback`)**, e2e on `test/` fixtures, svelte parity copies | [core-adoption.md](./core-adoption.md) → [.decisions](./core-adoption.decisions.md) → implement → [.checks](./core-adoption.checks.md) *(web-components; Svelte: parity only)* |
 | Scaffolding or editing a component's `/publish` slash-command (release flow: pre-checks, version resolution, CHANGELOG / README handling, commit) | [publish-command.md](./publish-command.md) → implement → [.checks](./publish-command.checks.md) |
+| Writing the upgrade guide for a published version — `release-notes/<version>.md` (header, Requirements, `- [ ]` Upgrade checklist, Breaking / Behaviour changes, …), the baseline rules (consolidated guide for a final after rcs), README What's New links | [release-notes.md](./release-notes.md) → [.decisions](./release-notes.decisions.md) → implement → [.checks](./release-notes.checks.md) |
 | Adding or changing examples on a component's example site (`examples-*.html`) — the permanent `TH07`-style section code on every example `<h2>` | [example-pages.md](./example-pages.md) → [.decisions](./example-pages.decisions.md) → implement → [.checks](./example-pages.checks.md) |
 | Looking for a concrete worked example | [example-web-player.md](./example-web-player.md) |
 
@@ -310,6 +313,15 @@ of the component's README.
       (except the smoke spec).
 - [ ] Every non-core copy of a core algorithm has a `docs/parity.md` row.
 - [ ] `./core-adoption.checks.sh <package>` passes.
+
+### Release notes
+- [ ] Every published version has `release-notes/<version>.md` in the
+      template's shape (header, Contents, Requirements, `- [ ]` Upgrade
+      checklist, canonical sections in order). See `release-notes.md`.
+- [ ] A final after rcs has a consolidated guide from the previous final.
+- [ ] `release-notes` is in `package.json` `files`; every README What's
+      New section links its notes.
+- [ ] `./release-notes.checks.sh <package>` passes.
 
 ### Example pages
 - [ ] Every example `<h2>` starts with a section code — `TH07 · Title`

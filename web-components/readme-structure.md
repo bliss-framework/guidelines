@@ -304,6 +304,13 @@ this format):
   prop…" for an addition). The CHANGELOG carries the structured
   Added/Changed/Fixed split; What's New is a curated highlight
   reel.
+- **Upgrade-guide line** — each section opens, before its bullets,
+  with one line linking that version's release notes and CHANGELOG
+  section: `Upgrade guide: the [X.Y.Z release notes](release-notes/X.Y.Z.md);
+  full list: the [CHANGELOG X.Y.Z section](CHANGELOG.md).` After the
+  retained sections, an `Earlier releases:` line links the older notes.
+  See [release-notes.md](./release-notes.md) → "README integration";
+  check C-RN-9.
 - **No emojis in the heading or lead phrases** — the format reads
   as prose, not as a release-card UI. Backticks for symbol names
   are the only inline decoration.

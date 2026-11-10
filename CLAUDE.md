@@ -40,6 +40,7 @@ web-components/
 ├── custom-elements-manifest.md / .decisions.md / .checks.md  ← CEM + editor tooling + webcomponents.org (web-components only)
 ├── responsive-overlay.md  / .decisions.md / .checks.md   ← Phone full-screen vs tablet/desktop anchored panel (panel-opening components only)
 ├── publish-command.md     / .checks.md                   ← Canonical /publish release flow
+├── release-notes.md       / .decisions.md / .checks.md   ← Per-version upgrade guide (release-notes/<version>.md)
 └── example-web-player.md                  ← Worked example applying the topics.
 ```
 

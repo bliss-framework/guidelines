@@ -345,6 +345,36 @@ or README; the `[PUBLISHED]` tag never lands in git.
 
 ---
 
+## C-PC-11 — Release notes wired into Step 1, Step 5 and Step 10
+
+**Tier:** `[auto]`
+
+**What:** The publish flow drafts, validates and commits the release
+notes ([release-notes.md](./release-notes.md)):
+
+- Step 1 references `release-notes.md` (the canonical template) and
+  checks for `release-notes/NEW_VERSION.md` (via `{{RELEASE_NOTES_DIR}}`
+  or a literal path);
+- Step 5 names `release-notes.checks.sh` or C-RN-12;
+- Step 10's stage list includes the notes file.
+
+**How to verify:**
+```bash
+grep -E "release-notes\.md" <publish.md>                    # Step 1
+grep -E "release-notes\.checks\.sh|C-RN-12" <publish.md>    # Step 5
+# Step 10 block mentions release-notes/
+```
+
+**Pass:** All three present.
+
+**Failure mode:** A version ships with no upgrade guide, or the notes
+are written but never committed — the README links a file that isn't
+there.
+
+**Tag:** D-PC-1.
+
+---
+
 ## Summary checklist (paste into PR description)
 
 ```
@@ -359,4 +389,5 @@ or README; the `[PUBLISHED]` tag never lands in git.
 [ ] C-PC-8  [auto]   Section [canonical] / [per-repo] tags match the spec table
 [ ] C-PC-9  [auto]   What's New draft uses 5–8 bullet count target
 [ ] C-PC-10 [auto]   Step 10 stage-list mentions CHANGELOG + README + package.json
+[ ] C-PC-11 [auto]   Release notes: Step 1 drafts per release-notes.md, Step 5 validates, Step 10 stages
 ```
